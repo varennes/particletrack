@@ -7,23 +7,27 @@ integer, parameter:: b8 = selected_real_kind(14)
 
 integer :: i, j, nt
 integer :: prtclTotal
-
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
+! open/create file
+open(unit=10, file='prtclLocation.dat', action='write', status='replace')
+write(10,*) ' '
+close(10)
+
 ! set total possible number of particles in system
-prtclTotal = 20
+prtclTotal = 2000
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
     rsim(i,2) = 1.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 5.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 5.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 5.0_b8
+dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
+dr(2) = (rsim(2,2) - rsim(2,1)) / 10.0_b8
+dr(3) = (rsim(3,2) - rsim(3,1)) / 10.0_b8
 ! initialize track array size
 allocate( prtclArray( prtclTotal, 4))
 
@@ -49,7 +53,7 @@ enddo
 call wrtPrtclLocation( prtclTotal, nt, prtclArray)
 
 ! move particles for some number of timesteps
-do nt = 2, 40
+do nt = 2, 1000
 ! do while( nt < 40)
     ! nt = nt + 1
     ! update particle location and check boundary conditions
@@ -63,7 +67,7 @@ do nt = 2, 40
     ! add flux of particles
     call prtclFlux( prtclTotal, dr, rsim, prtclArray)
 
-    if ( mod(nt,10) == 0 ) then
+    if ( mod(nt,200) == 0 ) then
         ! do i = 1, prtclTotal
         !     if( prtclArray(i,4) == 1.0_b8 ) then
         !         write(*,*) prtclArray(i,1:3), nt
@@ -84,7 +88,10 @@ contains
         real(b8) :: a, d, g
         integer  :: i, j, k, nJ
         ! add flux to top boundary
-        nJ = N / 10 ! nJ is the number of particles added
+        nJ = N / 200 ! nJ is the number of particles added
+        if ( nJ == 0 ) then
+            nJ = 1
+        end if
         do i = 1, nJ
             j = 1
             do while( prtclArray(j,4) == 1.0_b8 )
@@ -145,11 +152,11 @@ contains
                     ! reflective boundaries perpendicular to gradient
                     do j = 2, 3
                         if( prtclArray(i,j) < rsim(j,1) )then
-                            write(*,*) 'too small', prtclArray(i,j), i, j
+                            ! write(*,*) 'too small', prtclArray(i,j), i, j
                             prtclArray(i,j) = rsim(j,2) - (rsim(j,1) - prtclArray(i,j))
                             exit
                         elseif( prtclArray(i,j) > rsim(j,2) )then
-                            write(*,*) 'too big', prtclArray(i,j), i, j
+                            ! write(*,*) 'too big', prtclArray(i,j), i, j
                             prtclArray(i,j) = (prtclArray(i,j) - rsim(j,2)) + rsim(j,1)
                             exit
                         endif
@@ -157,7 +164,7 @@ contains
                 else
                     ! absorbing boundary parallel to gradient
                     if( (prtclArray(i,dim)<rsim(dim,1)) .OR. (prtclArray(i,dim)>rsim(dim,2)) )then
-                        write(*,*) 'absorbed', prtclArray(i,dim), i
+                        ! write(*,*) 'absorbed', prtclArray(i,dim), i
                         prtclArray(i,4) = 0.0_b8
                     endif
                 endif

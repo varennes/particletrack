@@ -1,6 +1,7 @@
 # output data
 *.dat
 fort.*
+*.png
 
 # Compiled Object files
 *.slo
