@@ -5,7 +5,7 @@ implicit none
 
 integer, parameter:: b8 = selected_real_kind(14)
 
-integer :: i, j, nt
+integer :: i, j, nt, run, runTotal
 integer :: prtclTotal
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
@@ -21,6 +21,8 @@ open(unit=10, file='prtclLocation.dat', action='write', status='replace')
 write(10,*) ' '
 close(10)
 
+! set total number of runs
+runTotal = 10
 ! set total possible number of particles in system
 prtclTotal = 200
 ! initialize simulation space size
@@ -49,50 +51,51 @@ write(*,*)
 
 call init_random_seed()
 
-! initialize cell position
-call initOneCell( cellTotal, rsim, cellArray)
-write(*,*) 'cell location'
-write(*,*) '   x :', cellArray(1,1,:)
-write(*,*) '   y :', cellArray(1,2,:)
-write(*,*) '   z :', cellArray(1,3,:)
-! initialize particle positions
-nt = 1
-prtclArray(:,:) = 0.0_b8
-do i = 1, (prtclTotal/2)
-    prtclArray(i,4) = 1.0_b8
-    do j = 1, 3
-        call random_number(r) ! in cpm code use ran1() function
-        prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
-    enddo
-enddo
-call wrtPrtclLocation( prtclTotal, nt, prtclArray)
+do run = 1, runTotal
+    write(*,*) ' run', run
 
-! move particles for some number of timesteps
-do nt = 2, 1000
-! do while( nt < 40)
-    ! nt = nt + 1
-    ! update particle location and check boundary conditions
-    call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
-    ! write(*,*) '  move  '
-    do i = 1, prtclTotal
-        if ( prtclArray(i,4) == 1.0_b8 ) then
-            ! write(*,*) 'i=', i, prtclArray(i,1:3)
+    ! initialize cell position
+    call initOneCell( cellTotal, rsim, cellArray)
+    ! initialize particle positions
+    nt = 1
+    prtclArray(:,:) = 0.0_b8
+    do i = 1, (prtclTotal/2)
+        prtclArray(i,4) = 1.0_b8
+        do j = 1, 3
+            call random_number(r) ! in cpm code use ran1() function
+            prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
+        enddo
+    enddo
+    call wrtPrtclLocation( prtclTotal, nt, prtclArray)
+
+    ! move particles for some number of timesteps
+    do nt = 2, 1000
+    ! do while( nt < 40)
+        ! nt = nt + 1
+        ! update particle location and check boundary conditions
+        call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+        ! write(*,*) '  move  '
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! write(*,*) 'i=', i, prtclArray(i,1:3)
+            end if
+        enddo
+        ! add flux of particles
+        call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+
+        ! if ( mod(nt,200) == 0 ) then
+        !     call wrtPrtclLocation( prtclTotal, nt, prtclArray)
+        ! end if
+        ! count the particles within a cell
+        if ( nt >= 300 .AND. mod(nt,100) == 0 ) then
+        ! if ( nt >= 300 .AND. nt < 301 ) then
+            ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
+            ! write(*,*) countArray(1), nt
+            call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+            call wrtPlrTotal( run, cellTotal, cellPolar, nt)
         end if
     enddo
-    ! add flux of particles
-    call prtclFlux( prtclTotal, dr, rsim, prtclArray)
 
-    if ( mod(nt,200) == 0 ) then
-        call wrtPrtclLocation( prtclTotal, nt, prtclArray)
-    end if
-    ! count the particles within a cell
-    if ( nt >= 300 .AND. mod(nt,100) == 0 ) then
-    ! if ( nt >= 300 .AND. nt < 301 ) then
-        ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-        ! write(*,*) countArray(1), nt
-        call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        call wrtPlrTotal( 1, cellTotal, cellPolar, nt)
-    end if
 enddo
 
 contains
