@@ -12,24 +12,33 @@ real(b8) :: r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
+integer :: cellTotal
+real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:)
+integer,  allocatable :: countArray(:)
+
 ! open/create file
 open(unit=10, file='prtclLocation.dat', action='write', status='replace')
 write(10,*) ' '
 close(10)
 
 ! set total possible number of particles in system
-prtclTotal = 2000
+prtclTotal = 200
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
     rsim(i,2) = 1.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 10.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 10.0_b8
-! initialize track array size
+dr(1) = (rsim(1,2) - rsim(1,1)) / 20.0_b8
+dr(2) = (rsim(2,2) - rsim(2,1)) / 20.0_b8
+dr(3) = (rsim(3,2) - rsim(3,1)) / 20.0_b8
+! set total number of cell in system
+cellTotal = 1
+! allocate memory
 allocate( prtclArray( prtclTotal, 4))
+allocate( cellArray( cellTotal, 3, 2))
+allocate( cellPolar( cellTotal, 3))
+allocate( countArray( cellTotal))
 
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '  Ninitial =', prtclTotal/2
@@ -40,7 +49,13 @@ write(*,*)
 
 call init_random_seed()
 
-! initialize particle positions positions
+! initialize cell position
+call initOneCell( cellTotal, rsim, cellArray)
+write(*,*) 'cell location'
+write(*,*) '   x :', cellArray(1,1,:)
+write(*,*) '   y :', cellArray(1,2,:)
+write(*,*) '   z :', cellArray(1,3,:)
+! initialize particle positions
 nt = 1
 prtclArray(:,:) = 0.0_b8
 do i = 1, (prtclTotal/2)
@@ -68,12 +83,15 @@ do nt = 2, 1000
     call prtclFlux( prtclTotal, dr, rsim, prtclArray)
 
     if ( mod(nt,200) == 0 ) then
-        ! do i = 1, prtclTotal
-        !     if( prtclArray(i,4) == 1.0_b8 ) then
-        !         write(*,*) prtclArray(i,1:3), nt
-        !     endif
-        ! enddo
         call wrtPrtclLocation( prtclTotal, nt, prtclArray)
+    end if
+    ! count the particles within a cell
+    if ( nt >= 300 .AND. mod(nt,100) == 0 ) then
+    ! if ( nt >= 300 .AND. nt < 301 ) then
+        ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
+        ! write(*,*) countArray(1), nt
+        call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        call wrtPlrTotal( 1, cellTotal, cellPolar, nt)
     end if
 enddo
 
@@ -186,6 +204,128 @@ contains
             end if
         enddo
     end subroutine wrtPrtclLocation
+
+
+    ! calculate MW cell polarization
+    subroutine cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        implicit none
+        integer,  intent(in)  :: cellTotal, prtclTotal
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: center(3), check, q(3), qtot(3)
+        integer :: i, j, k
+        cellPolar(:,:) = 0.0_b8
+        qtot = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 3
+                center(j) = (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+            enddo
+            qtot = 0.0_b8
+            do j = 1, prtclTotal
+                q = 0.0_b8
+                if ( prtclArray(j,4) == 1.0_b8 ) then
+                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
+                    if ( check < 0.0 ) then
+                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
+                        if ( check < 0.0 ) then
+                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
+                            if ( check < 0.0 ) then
+                                do k = 1, 3
+                                    q(k) = prtclArray(j,k) - center(k)
+                                enddo
+                                ! q = q / sqrt(dot_product(q,q))
+                                q = q
+                            endif
+                        endif
+                    endif
+                endif
+                qtot = qtot + q
+            enddo
+            ! cellPolar(i,:) = qtot / sqrt(dot_product(qtot,qtot))
+            cellPolar(i,:) = qtot
+        enddo
+
+    end subroutine cellpolarMW
+
+
+    ! count the number of particels within cells volume
+    subroutine cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
+        implicit none
+        integer,  intent(in)  :: cellTotal, prtclTotal
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        integer,  intent(out) :: countArray(:)
+        integer  :: i, j
+        real(b8) :: check
+        do i = 1, cellTotal
+            countArray(i) = 0
+            do j = 1, prtclTotal
+                if ( prtclArray(j,4) == 1.0_b8 ) then
+                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
+                    if ( check < 0.0 ) then
+                        ! write(*,*) 'passed x-check:', prtclArray(j,1:3)
+                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
+                        if ( check < 0.0 ) then
+                            ! write(*,*) 'passed y-check:', prtclArray(j,1:3)
+                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
+                            if ( check < 0.0 ) then
+                                ! write(*,*) 'passed z-check:', prtclArray(j,1:3)
+                                countArray(i) = countArray(i) + 1
+                            endif
+                        endif
+                    endif
+                endif
+            enddo
+        enddo
+    end subroutine cellCount
+
+
+    subroutine initOneCell( N, rsim, cellArray)
+        implicit none
+        integer,  intent(in)  :: N
+        real(b8), intent(in)  :: rsim(:,:)
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8) :: a, center(3)
+        integer :: i
+        if ( N > 1 ) then
+            write(*,*) 'error: cellTotal > 1'
+            write(*,*) 'only 1 cell will be initialized'
+            write(*,*)
+        end if
+        ! calculate the center of the cell
+        do i = 1, 3
+            center(i) = (rsim(i,2) - rsim(i,1)) / 2.0_b8
+        enddo
+        ! set the cell length
+        a = (rsim(1,2) - rsim(1,1)) / 2.0_b8
+        do i = 1, 3
+            cellArray(1,i,1) = center(i) - ( a / 2.0_b8 )
+            cellArray(1,i,2) = center(i) + ( a / 2.0_b8 )
+        enddo
+    end subroutine initOneCell
+
+
+    ! output total cluster polarization to fort.141
+    subroutine wrtPlrTotal( nRun, cellTotal, cellPolar, nt)
+        implicit none
+        integer,  intent(in) :: cellTotal, nRun, nt
+        real(b8), intent(in), dimension(:,:) :: cellPolar
+        real(b8) :: px, py, pz
+        integer  :: i
+
+        px = 0.0_b8
+        py = 0.0_b8
+        pz = 0.0_b8
+        do i = 1, cellTotal
+            px = px + cellPolar(i,1)
+            py = py + cellPolar(i,2)
+            pz = pz + cellPolar(i,3)
+        enddo
+        write(100+nRun,"(E16.8)", advance="no") px
+        write(100+nRun,"(E17.8)", advance="no") py
+        write(100+nRun,"(E17.8)", advance="no") pz
+        write(100+nRun,"(I10)", advance="no")   nt
+        write(100+nRun,*) ''
+    end subroutine wrtPlrTotal
 end program
 
 
