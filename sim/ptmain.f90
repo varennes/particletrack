@@ -5,7 +5,8 @@ implicit none
 
 integer, parameter:: b8 = selected_real_kind(14)
 
-integer :: i, j, N, Ntotal, nt
+integer :: i, j, nt
+integer :: prtclTotal
 
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
@@ -40,7 +41,7 @@ nt = 1
 prtclArray(:,:) = 0.0_b8
 do i = 1, (prtclTotal/2)
     prtclArray(i,4) = 1.0_b8
-    do k = 1, 3
+    do j = 1, 3
         call random_number(r) ! in cpm code use ran1() function
         prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
     enddo
@@ -48,20 +49,26 @@ enddo
 call wrtPrtclLocation( prtclTotal, nt, prtclArray)
 
 ! move particles for some number of timesteps
-do while( nt < 100)
-    nt = nt + 1
+do nt = 2, 40
+! do while( nt < 40)
+    ! nt = nt + 1
     ! update particle location and check boundary conditions
     call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
-    write(*,*) '  move  '
+    ! write(*,*) '  move  '
     do i = 1, prtclTotal
         if ( prtclArray(i,4) == 1.0_b8 ) then
-            write(*,*) 'i=', i, prtclArray(i,:)
+            ! write(*,*) 'i=', i, prtclArray(i,1:3)
         end if
     enddo
     ! add flux of particles
     call prtclFlux( prtclTotal, dr, rsim, prtclArray)
 
     if ( mod(nt,10) == 0 ) then
+        ! do i = 1, prtclTotal
+        !     if( prtclArray(i,4) == 1.0_b8 ) then
+        !         write(*,*) prtclArray(i,1:3), nt
+        !     endif
+        ! enddo
         call wrtPrtclLocation( prtclTotal, nt, prtclArray)
     end if
 enddo
@@ -80,8 +87,11 @@ contains
         nJ = N / 10 ! nJ is the number of particles added
         do i = 1, nJ
             j = 1
-            do while( j <= N .AND. prtclArray(j,4) == 1.0_b8 )
+            do while( prtclArray(j,4) == 1.0_b8 )
                 j = j + 1
+                if ( j > N ) then
+                    exit
+                end if
             enddo
             if ( j > N ) then
                 exit
@@ -102,7 +112,7 @@ contains
         integer,  intent(in)    :: N
         real(b8), intent(in)    :: dr(:), rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
-        integer  :: i
+        integer  :: i, dim
         real(b8) :: r
 
         do i = 1, N
@@ -112,22 +122,22 @@ contains
                 call random_number(r)
                 if ( r < (1.0_b8/6.0_b8) ) then
                     dim = 1
-                    prtclArray(1,i) = prtclArray(i,1) - dr(1)
+                    prtclArray(i,1) = prtclArray(i,1) - dr(1)
                 elseif( r < (2.0_b8/6.0_b8) )then
                     dim = 1
-                    prtclArray(1,i) = prtclArray(i,1) + dr(1)
+                    prtclArray(i,1) = prtclArray(i,1) + dr(1)
                 elseif( r < (3.0_b8/6.0_b8) )then
                     dim = 2
-                    prtclArray(2,i) = prtclArray(i,2) - dr(2)
+                    prtclArray(i,2) = prtclArray(i,2) - dr(2)
                 elseif( r < (4.0_b8/6.0_b8) )then
                     dim = 2
-                    prtclArray(2,i) = prtclArray(i,2) + dr(2)
+                    prtclArray(i,2) = prtclArray(i,2) + dr(2)
                 elseif( r < (5.0_b8/6.0_b8) )then
                     dim = 3
-                    prtclArray(3,i) = prtclArray(i,3) - dr(3)
+                    prtclArray(i,3) = prtclArray(i,3) - dr(3)
                 else
                     dim = 3
-                    prtclArray(3,i) = prtclArray(i,3) + dr(1)
+                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
                 endif
 
                 ! check boundary conditions
@@ -147,7 +157,7 @@ contains
                 else
                     ! absorbing boundary parallel to gradient
                     if( (prtclArray(i,dim)<rsim(dim,1)) .OR. (prtclArray(i,dim)>rsim(dim,2)) )then
-                        write(*,*) 'absorbed', prtclArray(i,1:3), i
+                        write(*,*) 'absorbed', prtclArray(i,dim), i
                         prtclArray(i,4) = 0.0_b8
                     endif
                 endif
@@ -162,10 +172,10 @@ contains
         integer,  intent(in) :: N, nt
         real(b8), intent(in) :: prtclArray(:,:)
         integer :: i
-
+        open(unit=11, file='prtclLocation.dat', action='write', status='old')
         do i = 1, N
             if ( prtclArray(i,4) == 1.0_b8 ) then
-                write(1,*) prtclArray(i,1:3), nt
+                write(11,*) prtclArray(i,1:3), nt
             end if
         enddo
     end subroutine wrtPrtclLocation
