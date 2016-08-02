@@ -5,7 +5,7 @@ implicit none
 
 integer, parameter:: b8 = selected_real_kind(14)
 
-integer :: i, j, N, Ntotal, nc
+integer :: i, j, N, Ntotal, nt
 
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
@@ -26,8 +26,8 @@ dr(3) = (rsim(3,2) - rsim(3,1)) / 5.0_b8
 ! initialize track array size
 allocate( prtclArray( prtclTotal, 4))
 
-write(*,*) 'Ntotal =',Ntotal
-write(*,*) '     N =',N
+write(*,*) 'prtclTotal =', prtclTotal
+write(*,*) '  Ninitial =', prtclTotal/2
 do i = 1, 3
     write(*,*) 'dr =', dr(1)
 enddo
@@ -36,6 +36,7 @@ write(*,*)
 call init_random_seed()
 
 ! initialize particle positions positions
+nt = 1
 prtclArray(:,:) = 0.0_b8
 do i = 1, (prtclTotal/2)
     prtclArray(i,4) = 1.0_b8
@@ -43,25 +44,31 @@ do i = 1, (prtclTotal/2)
         call random_number(r) ! in cpm code use ran1() function
         prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
     enddo
-    write(*,*) 'i=', i, prtclArray(i,:)
 enddo
+call wrtPrtclLocation( prtclTotal, nt, prtclArray)
 
-! update particle location and check boundary conditions
-call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
-write(*,*) '  move  '
-do i = 1, prtclTotal
-    if ( prtclArray(i,4) == 1.0_b8 ) then
-        write(*,*) 'i=', i, prtclArray(i,:)
+! move particles for some number of timesteps
+do while( nt < 100)
+    nt = nt + 1
+    ! update particle location and check boundary conditions
+    call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+    write(*,*) '  move  '
+    do i = 1, prtclTotal
+        if ( prtclArray(i,4) == 1.0_b8 ) then
+            write(*,*) 'i=', i, prtclArray(i,:)
+        end if
+    enddo
+    ! add flux of particles
+    call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+
+    if ( mod(nt,10) == 0 ) then
+        call wrtPrtclLocation( prtclTotal, nt, prtclArray)
     end if
 enddo
 
-! add flux of particles
-call prtclFlux( prtclTotal, dr, rsim, prtclArray)
-
-
 contains
     ! gradient is assumed to be in the x-direction (1)
-    ! add flux of particles at x-boundaries
+    ! add flux of particles at top x-boundary
     subroutine prtclFlux( N, dr, rsim, prtclArray)
         implicit none
         integer,  intent(in)    :: N
@@ -69,22 +76,20 @@ contains
         real(b8), intent(inout) :: prtclArray(:,:)
         real(b8) :: a, d, g
         integer  :: i, j, k, nJ
-        ! cross-sectional area of flux
-        a = (rsim(1,1)-rsim(1,2)) * (rsim(3,1)-rsim(3,2))
-        ! set diffusion and gradient
-        d = 4.00_b8
-        g = 0.50_b8
-        ! calculate flux
-        nJ = int( d*g*a)
-        write(*,*) 'flux =', nJ
+        ! add flux to top boundary
+        nJ = N / 10 ! nJ is the number of particles added
         do i = 1, nJ
             j = 1
-            do while( prtclArray(j,4) == 1.0_b8 )
+            do while( j <= N .AND. prtclArray(j,4) == 1.0_b8 )
                 j = j + 1
             enddo
-            prtclArray(j,1) = rsim(1,1) + dr(1)
+            if ( j > N ) then
+                exit
+            end if
+            prtclArray(j,4) = 1.0_b8
+            prtclArray(j,1) = rsim(1,2) - dr(1)
             do k = 2, 3
-                call random_number(r) ! in cpm code use ran1() function
+                call random_number(r) ! cpm code used ran1() function
                 prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
             enddo
         enddo
@@ -150,6 +155,20 @@ contains
         enddo
     end subroutine prtclUpdate
 
+
+    ! output particle location data
+    subroutine wrtPrtclLocation( N, nt, prtclArray)
+        implicit none
+        integer,  intent(in) :: N, nt
+        real(b8), intent(in) :: prtclArray(:,:)
+        integer :: i
+
+        do i = 1, N
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                write(1,*) prtclArray(i,1:3), nt
+            end if
+        enddo
+    end subroutine wrtPrtclLocation
 end program
 
 
