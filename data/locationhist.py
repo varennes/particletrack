@@ -54,5 +54,5 @@ for zt in z:
 plt.ylabel('z dist.')
 plt.legend( fontsize=10)
 
-plt.savefig('prtcl_location_dist3.png', bbox_inches='tight')
+# plt.savefig('prtcl_location_dist4.png', bbox_inches='tight')
 plt.show()

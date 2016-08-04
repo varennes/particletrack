@@ -1,3 +1,6 @@
+# directories
+data/*
+
 # output data
 *.dat
 fort.*
