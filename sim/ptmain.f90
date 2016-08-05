@@ -5,7 +5,7 @@ implicit none
 
 integer, parameter:: b8 = selected_real_kind(14)
 
-integer :: i, j, nt, ntTotal, run, runTotal
+integer :: i, j, nt, ntItl, ntTotal, run, runTotal
 integer :: prtclTotal
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
@@ -25,7 +25,8 @@ close(10)
 
 ! set total number of runs
 runTotal = 200
-ntTotal  = 3000
+ntTotal  = 7000
+ntItl    = 3000
 ! set total possible number of particles in system
 prtclTotal = 1000
 ! initialize simulation space size
@@ -77,35 +78,31 @@ do run = 1, runTotal
     ! call wrtPrtclLocation( prtclTotal, nt, prtclArray)
 
     ! move particles for some number of timesteps
-    do nt = 2, ntTotal+3000
-    ! do while( nt < 40)
-        ! nt = nt + 1
+    do nt = 2, ntTotal+ntItl
+
         ! update particle location and check boundary conditions
         call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
-        ! write(*,*) '  move  '
-        do i = 1, prtclTotal
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                ! write(*,*) 'i=', i, prtclArray(i,1:3)
-            end if
-        enddo
         ! add flux of particles
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
 
+        ! output particle locations
         ! if ( mod(nt,3000) == 0 ) then
         !     call wrtPrtclLocation( prtclTotal, nt, prtclArray)
         ! end if
+
         ! INSTANTANEOUS
-        ! if ( nt == ntTotal ) then
+        ! if ( nt == ntTotal+300 ) then
         !     call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
         !     write(100,*) countArray(1), run
         !     exit
         ! end if
+
         ! LONG TIME: count the particles within a cell
         ! if ( nt >= 3000 .AND. mod(nt,50) == 0 ) then
-        if ( nt > 3000 ) then
+        if ( nt > ntItl ) then
         ! if ( nt >= 300 .AND. nt < 301 ) then
             call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-            timeCount(nt-3000) = float(countArray(1))
+            timeCount(nt-ntItl) = float(countArray(1))
             ! write(100+run,*) countArray(1), nt-3000
             ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call wrtPlrTotal( run, cellTotal, cellPolar, nt-3000)
@@ -113,9 +110,8 @@ do run = 1, runTotal
     enddo
 
     ! calculate and output time averaged molecule count
-    meanCount = sum(timeCount) / float(ntTotal)
-    write(100,*) meanCount, run
-
+    ! meanCount = sum(timeCount) / float(ntTotal)
+    ! write(100,*) meanCount, run
 enddo
 
 contains
@@ -191,8 +187,7 @@ contains
 
                 ! check boundary conditions
                 if ( dim /= 1 ) then
-                ! if ( dim > 0 ) then
-                    ! reflective boundaries perpendicular to gradient
+                    ! periodic boundaries perpendicular to gradient
                     do j = 2, 3
                         if( prtclArray(i,j) < rsim(j,1) )then
                             ! write(*,*) 'too small', prtclArray(i,j), i, j
@@ -216,6 +211,52 @@ contains
     end subroutine prtclUpdate
 
 
+    ! move particles and check boundary conditions
+    ! all boundaries are periodic
+    subroutine prtclUpdate2( N, dr, rsim, prtclArray)
+        implicit none
+        integer,  intent(in)    :: N
+        real(b8), intent(in)    :: dr(:), rsim(:,:)
+        real(b8), intent(inout) :: prtclArray(:,:)
+        integer  :: i
+        real(b8) :: r
+
+        do i = 1, N
+            ! check whether array index corresponds to a particle
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! move the particle by distance dr(j) in random direction
+                call random_number(r)
+                if ( r < (1.0_b8/6.0_b8) ) then
+                    prtclArray(i,1) = prtclArray(i,1) - dr(1)
+                elseif( r < (2.0_b8/6.0_b8) )then
+                    prtclArray(i,1) = prtclArray(i,1) + dr(1)
+                elseif( r < (3.0_b8/6.0_b8) )then
+                    prtclArray(i,2) = prtclArray(i,2) - dr(2)
+                elseif( r < (4.0_b8/6.0_b8) )then
+                    prtclArray(i,2) = prtclArray(i,2) + dr(2)
+                elseif( r < (5.0_b8/6.0_b8) )then
+                    prtclArray(i,3) = prtclArray(i,3) - dr(3)
+                else
+                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
+                endif
+
+                ! check periodic boundary conditions
+                do j = 1, 3
+                    if( prtclArray(i,j) < rsim(j,1) )then
+                        ! write(*,*) 'too small', prtclArray(i,j), i, j
+                        prtclArray(i,j) = rsim(j,2) - (rsim(j,1) - prtclArray(i,j))
+                        exit
+                    elseif( prtclArray(i,j) > rsim(j,2) )then
+                        ! write(*,*) 'too big', prtclArray(i,j), i, j
+                        prtclArray(i,j) = (prtclArray(i,j) - rsim(j,2)) + rsim(j,1)
+                        exit
+                    endif
+                enddo
+            endif
+        enddo
+    end subroutine prtclUpdate2
+
+
     ! output particle location data
     subroutine wrtPrtclLocation( N, nt, prtclArray)
         implicit none
@@ -229,6 +270,20 @@ contains
             end if
         enddo
     end subroutine wrtPrtclLocation
+
+
+    subroutine getConcentration( rsim, prtclTotal, prtclArray)
+        implicit none
+        integer,  intent(in)    :: prtclTotal
+        real(b8), intent(in)    :: rsim(:,:)
+        real(b8), intent(inout) :: prtclArray(:,:)
+        real(b8) :: voxl
+        integer :: i
+        ! set length of voxels
+        voxl = min(rsim(:,2)) / 100.0_b8
+        print 'voxl =', voxl
+
+    end subroutine getConcentration
 
 
     ! calculate MW cell polarization
