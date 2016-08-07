@@ -1,9 +1,11 @@
 program diff
 ! test diffusion in a 3d lattice
 
+use sysconfig
+
 implicit none
 
-integer, parameter:: b8 = selected_real_kind(14)
+! integer, parameter:: b8 = selected_real_kind(14)
 
 integer :: i, j, nt, ntItl, ntTotal, run, runTotal
 integer :: prtclTotal
@@ -60,6 +62,15 @@ enddo
 write(*,*)
 
 call init_random_seed()
+
+! call itlCellCluster( cellTotal, cellArray, rsim)
+! do i = 1, cellTotal
+!     write(*,*) 'cell', i
+!     do j = 1, 3
+!         write(*,*) cellArray(i,j,:)
+!     enddo
+! enddo
+! write(*,*)
 
 do run = 1, runTotal
     write(*,*) ' run', run
