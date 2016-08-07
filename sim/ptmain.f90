@@ -15,7 +15,8 @@ real(b8), allocatable :: prtclArray(:,:)
 integer :: cellTotal
 real(b8) :: meanCount, varCount
 integer,  allocatable :: countArray(:)
-real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), timeCount(:)
+real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:)
+real(b8), allocatable :: timePolar(:,:), timeCount(:)
 
 
 ! open/create file
@@ -25,8 +26,8 @@ close(10)
 
 ! set total number of runs
 runTotal = 200
-ntTotal  = 7000
-ntItl    = 3000
+ntTotal  = 5000
+ntItl    = 5000
 ! set total possible number of particles in system
 prtclTotal = 1000
 ! initialize simulation space size
@@ -44,8 +45,12 @@ cellTotal = 1
 allocate( prtclArray( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
+allocate( timePolar( 3, ntTotal))
 allocate( countArray( cellTotal))
 allocate( timeCount( ntTotal))
+
+! initialize concentration array
+call allocateConcentration( 100, rsim, concentration)
 
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '  Ninitial =', prtclTotal/2
@@ -76,11 +81,13 @@ do run = 1, runTotal
         enddo
     enddo
     ! call wrtPrtclLocation( prtclTotal, nt, prtclArray)
+    ! call concentrationUpdate( prtclTotal, prtclArray, concentration)
 
     ! move particles for some number of timesteps
     do nt = 2, ntTotal+ntItl
 
         ! update particle location and check boundary conditions
+        ! call prtclUpdate2( prtclTotal, dr, rsim, prtclArray)
         call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
         ! add flux of particles
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
@@ -101,10 +108,13 @@ do run = 1, runTotal
         ! if ( nt >= 3000 .AND. mod(nt,50) == 0 ) then
         if ( nt > ntItl ) then
         ! if ( nt >= 300 .AND. nt < 301 ) then
-            call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-            timeCount(nt-ntItl) = float(countArray(1))
+            ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
+            ! timeCount(nt-ntItl) = float(countArray(1))
             ! write(100+run,*) countArray(1), nt-3000
-            ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+            call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+            do j = 1, 3
+                timePolar(j,nt-ntItl) = sum(cellPolar(:,j))
+            enddo
             ! call wrtPlrTotal( run, cellTotal, cellPolar, nt-3000)
         end if
     enddo
@@ -112,7 +122,18 @@ do run = 1, runTotal
     ! calculate and output time averaged molecule count
     ! meanCount = sum(timeCount) / float(ntTotal)
     ! write(100,*) meanCount, run
+    do j = 1, 3
+        cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
+    enddo
+    write(200,*) cellPolar(1,:), run
 enddo
+
+deallocate( prtclArray)
+deallocate( cellArray)
+deallocate( cellPolar)
+deallocate( timePolar)
+deallocate( countArray)
+deallocate( timeCount)
 
 contains
     ! gradient is assumed to be in the x-direction (1)
@@ -272,19 +293,37 @@ contains
     end subroutine wrtPrtclLocation
 
 
-    subroutine getConcentration( rsim, prtclTotal, prtclArray)
+    ! assumes a cubic system geometry
+    subroutine allocateConcentration( size, rsim, concentration)
         implicit none
-        integer,  intent(in)    :: prtclTotal
-        real(b8), intent(in)    :: rsim(:,:)
-        real(b8), intent(inout) :: prtclArray(:,:)
-        real(b8) :: voxl
-        integer :: i
+        integer,  intent(in)    :: size
+        real(b8), intent(in)    :: rsim(3,2)
+        real(b8), intent(out), allocatable :: concentration(:,:,:)
+        allocate( concentration( size, size, size))
+        concentration = 0.0_b8
+    end subroutine allocateConcentration
+
+
+    subroutine concentrationUpdate( prtclTotal, prtclArray, concentration)
+        implicit none
+        integer,  intent(in)  :: prtclTotal
+        real(b8), intent(in)  :: prtclArray(:,:)
+        real(b8), intent(out) :: concentration(:,:,:)
+        real(b8) :: dc, voxl
+        integer  :: i, j, k, n
         ! set length of voxels
-        voxl = min(rsim(:,2)) / 100.0_b8
-        print 'voxl =', voxl
+        voxl = minval(rsim(:,2)) / float(size(concentration(:,1,1)))
+        dc   = 1.0_b8
 
-    end subroutine getConcentration
-
+        do n = 1, prtclTotal
+            if ( prtclArray(n,4) == 1.0_b8 ) then
+                i = floor( prtclArray(n,1) / voxl) + 1
+                j = floor( prtclArray(n,2) / voxl) + 1
+                k = floor( prtclArray(n,3) / voxl) + 1
+                concentration(i,j,k) = concentration(i,j,k) + dc
+            end if
+        enddo
+    end subroutine concentrationUpdate
 
     ! calculate MW cell polarization
     subroutine cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
@@ -298,7 +337,7 @@ contains
         qtot = 0.0_b8
         do i = 1, cellTotal
             do j = 1, 3
-                center(j) = (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+                center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
             enddo
             qtot = 0.0_b8
             do j = 1, prtclTotal
