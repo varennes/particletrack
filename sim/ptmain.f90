@@ -16,7 +16,7 @@ real(b8), allocatable :: prtclArray(:,:)
 
 integer :: cellTotal
 real(b8) :: meanCount, varCount
-integer,  allocatable :: countArray(:)
+integer,  allocatable :: countArray(:), edgeList(:)
 real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:)
 real(b8), allocatable :: timePolar(:,:), timeCount(:)
 
@@ -27,13 +27,13 @@ write(10,*) ' '
 close(10)
 
 ! set total number of cell in system
-cellTotal = 10
+cellTotal = 7
 ! set total number of runs
 runTotal = 1
 ntTotal  = 100
 ntItl    = 5000
 ! set total possible number of particles in system
-prtclTotal = 1000
+prtclTotal = 5000
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
@@ -51,6 +51,7 @@ allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
 allocate( countArray( cellTotal))
+allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 
 ! initialize concentration array
@@ -86,7 +87,16 @@ do run = 1, runTotal
     ! initialize cell position
     ! call itlClusterSys( cellTotal, cellArray, rsim)
     call itlCellCluster( cellTotal, cellArray, rsim)
-    ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
+    call wrtOutClusterSys( cellTotal, cellArray, rsim)
+    ! for EC polarization, find which cells are on the cluster edge
+    edgeList = 0
+    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    write(*,*)
+    do i = 1, cellTotal
+        if ( edgeList(i) == 1 ) then
+            write(*,*) 'edge cell, i =', i
+        end if
+    enddo
 
     ! initialize particle positions
     nt = 1
@@ -108,7 +118,13 @@ do run = 1, runTotal
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
     enddo
     ! gather statistics
-    do nt = 1, ntTotal
+    do nt = 1, 1
+        !!! test EC subroutine
+        call cellpolarEC( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        write(*,*)
+        do i = 1, cellTotal
+            write(*,*) 'p vector, cell', i, cellPolar(i,:)
+        enddo
         ! update particle location and check boundary conditions
         ! call prtclUpdate2( prtclTotal, dr, rsim, prtclArray)
         call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
@@ -342,6 +358,126 @@ contains
             end if
         enddo
     end subroutine concentrationUpdate
+
+
+    ! calculate EC cell polarization
+    ! individual cell polarization vectors are NOT adaptive
+    subroutine cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        implicit none
+        integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: clstrCOM(3), cellCOM(3,2), center(3), check, q(3)
+        real(b8) :: nCell, nCOM
+        integer :: i, j, k
+
+        cellPolar(:,:) = 0.0_b8
+        do i = 1, cellTotal
+            nCell = 0.0_b8
+            ! check if cell is on the edge of the cluster
+            if ( edgeList(i) == 1 ) then
+                q = 0.0_b8
+                do j = 1, 3
+                    center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+                    q(j) = center(j) - clstrCOM(j)
+                enddo
+                q = q / sqrt(dot_product(q,q))
+                ! calculate the concentration in cell i
+                do j = 1, prtclTotal
+                    if ( prtclArray(j,4) == 1.0_b8 ) then
+                        check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
+                        if ( check < 0.0 ) then
+                            check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
+                            if ( check < 0.0 ) then
+                                check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
+                                if ( check < 0.0 ) then
+                                    nCell = nCell + 1.0_b8
+                                endif
+                            endif
+                        endif
+                    endif
+                enddo
+                write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell
+                cellPolar(i,:) = nCell * q
+            end if
+        enddo
+    end subroutine cellpolarECNonAdpt
+
+
+    ! calculate EC cell polarization
+    subroutine cellpolarEC( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        implicit none
+        integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: clstrCOM(3), cellCOM(3,2), center(3), check, q(3)
+        real(b8) :: nCell, nCOM
+        integer :: i, j, k
+
+        cellPolar(:,:) = 0.0_b8
+        ! calculate Cluster COM
+        clstrCOM = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 3
+                clstrCOM(j) = clstrCOM(j) + cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+            enddo
+        enddo
+        clstrCOM(:) = clstrCOM(:) / float(cellTotal)
+        do i = 1,3
+            cellCOM(i,1)  = clstrCOM(i) - (cellArray(1,i,2) - cellArray(1,i,1)) / (2.0_b8)
+            cellCOM(i,2)  = clstrCOM(i) + (cellArray(1,i,2) - cellArray(1,i,1)) / (2.0_b8)
+        enddo
+        write(*,*) 'cluster COM', clstrCOM
+        write(*,*) '  cluster x',cellCOM(1,:), '  cluster y',cellCOM(2,:),'  cluster z',cellCOM(3,:)
+        ! calculate concentration at COM
+        nCOM = 0.0_b8
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                check = (prtclArray(i,1)-cellCOM(1,1))*(prtclArray(i,1)-cellCOM(1,2))
+                if ( check < 0.0 ) then
+                    check = (prtclArray(i,2)-cellCOM(2,1))*(prtclArray(i,2)-cellCOM(2,2))
+                    if ( check < 0.0 ) then
+                        check = (prtclArray(i,3)-cellCOM(3,1))*(prtclArray(i,3)-cellCOM(3,2))
+                        if ( check < 0.0 ) then
+                            nCOM = nCOM + 1.0_b8
+                        end if
+                    end if
+                end if
+            end if
+        enddo
+
+        cellPolar(:,:) = 0.0_b8
+        do i = 1, cellTotal
+            nCell = 0.0_b8
+            ! check if cell is on the edge of the cluster
+            if ( edgeList(i) == 1 ) then
+                q = 0.0_b8
+                do j = 1, 3
+                    center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+                    q(j) = center(j) - clstrCOM(j)
+                enddo
+                q = q / sqrt(dot_product(q,q))
+                ! calculate the concentration in cell i
+                do j = 1, prtclTotal
+                    if ( prtclArray(j,4) == 1.0_b8 ) then
+                        check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
+                        if ( check < 0.0 ) then
+                            check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
+                            if ( check < 0.0 ) then
+                                check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
+                                if ( check < 0.0 ) then
+                                    nCell = nCell + 1.0_b8
+                                endif
+                            endif
+                        endif
+                    endif
+                enddo
+                write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell, 'nCOM =', nCOM
+                cellPolar(i,:) = q * (nCell - nCOM)
+            end if
+        enddo
+    end subroutine cellpolarEC
+
 
     ! calculate MW cell polarization
     subroutine cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)

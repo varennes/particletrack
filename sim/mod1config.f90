@@ -2,7 +2,9 @@ module sysconfig
 ! module for config of cell cluster
 
 ! b8 will be used to define reals with 14 digits
-integer, parameter:: b8 = selected_real_kind(14)
+integer,  parameter :: b8 = selected_real_kind(14)
+! set radius of the cell
+real(b8), parameter :: rCell = 0.200_b8
 
 contains
 
@@ -13,14 +15,15 @@ contains
         integer,  intent(in)  :: cellTotal
         real(b8), intent(out) :: rsim(:,:)
         real(b8), intent(out) :: cellArray(:,:,:)
-        real(b8) :: rCell, test(3), center(cellTotal,3)
-        real(b8) :: clusterLength, r, dr(6,3)
+        real(b8), allocatable :: center(:,:), dr(:,:), test(:)
+        real(b8) :: clusterLength, r
         integer :: cellCheck, i, ii, j, k, n
 
+        allocate( dr(6,3) )
+        allocate( test(3) )
+        allocate( center(cellTotal,3) )
         center(:,:)      = 0.0_b8
         cellArray(:,:,:) = 0.0_b8
-        ! set radius of the cell
-        rCell = 0.200_b8
         ! set dr, the displacement vector between cell centers
         dr(:,:) = 0.0_b8
         do i = 1, 3
@@ -87,6 +90,9 @@ contains
                 cellArray(j,i,2) = cellArray(j,i,2) + ((rsim(i,2) - rsim(i,1)) / 2.0_b8)
             enddo
         enddo
+        deallocate( dr )
+        deallocate( test )
+        deallocate( center )
     end subroutine itlClusterSys
 
 
@@ -114,13 +120,16 @@ contains
     subroutine itlCellCluster( cellTotal, cellArray, rsim)
         implicit none
         integer,  intent(in)  :: cellTotal
-        real(b8), intent(out), allocatable :: cellArray(:,:,:)
+        real(b8), intent(out) :: cellArray(:,:,:)
         real(b8), intent(in)  :: rsim(:,:)
-        real(b8) :: rCell, test(3), center(cellTotal,3)
-        real(b8) :: r, dr(6,3)
+        ! real(b8) :: rCell, test(3), center(cellTotal,3)
+        real(b8) :: r, rCell
+        real(b8), allocatable :: center(:,:), dr(:,:), test(:)
         integer :: cellCheck, i, ii, j, k, n
 
-        allocate( cellArray( cellTotal,3,2))
+        allocate( dr(6,3) )
+        allocate( test(3) )
+        allocate( center(cellTotal,3) )
         center(:,:)      = 0.0_b8
         cellArray(:,:,:) = 0.0_b8
         ! set radius of the cell
@@ -165,8 +174,8 @@ contains
                 if ( cellCheck == 0 ) then
                     center(i,:) = test
                     do ii = 1, 3
-                        cellArray(i,ii,1) = center(i,ii) - rCell
-                        cellArray(i,ii,2) = center(i,ii) + rCell
+                        cellArray(i,ii,1) = test(ii) - rCell
+                        cellArray(i,ii,2) = test(ii) + rCell
                     enddo
                     i = i + 1
                 end if
@@ -181,7 +190,67 @@ contains
             enddo
             n = n + 1
         enddo
+        deallocate( dr )
+        deallocate( test )
+        deallocate( center )
     end subroutine itlCellCluster
+
+
+    ! make a list of cells which are on the perimeter
+    ! edgeList(i) = 0 means that cell i is not an edge cell
+    ! edgeList(i) = 1 means that cell i is an edge cell
+    subroutine clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+        implicit none
+        integer,  intent(in)  :: cellTotal
+        integer,  intent(out) :: edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:), rsim(:,:)
+        real(b8), allocatable :: center(:,:), dr(:,:)
+        real(b8) :: dcell
+        integer  :: i, j, k, n1, n2, check
+
+        allocate( dr(6,3) )
+        allocate( center(cellTotal,3) )
+        ! set dr
+        dr(:,:) = 0.0_b8
+        do i = 1, 3
+            dr(i,i) = 2.0 * rCell
+        enddo
+        do i = 4, 6
+            dr(i,i-3) = -2.0 * rCell
+        enddo
+        ! set cell center from cellArray
+        center(:,:)      = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 3
+                center(i,j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / 2.0_b8
+            enddo
+            write(*,*) 'cell', i, 'center =', center(i,:)
+        enddo
+        edgeList(:) = 1
+        do n1 = 1, cellTotal
+            check = 0
+            do n2 = 1, cellTotal
+                if ( n1 == n2 ) then
+                    cycle
+                end if
+                dcell = 0.0_b8
+                do j = 1, 3
+                    dcell = dcell + (center(n1,j) - center(n2,j))**2
+                enddo
+                dcell = dsqrt(dcell)
+                if ( dcell >= 2.0*rCell-0.000001 .AND. dcell <= 2.0*rCell+0.000001 ) then
+                    check = check + 1
+                    write(*,*) 'cell', n1, 'check =', check, 'cell 2 =', n2
+                end if
+                if ( check > 5 ) then
+                    edgeList(n1) = 0
+                    exit
+                end if
+            enddo
+        enddo
+        deallocate( dr )
+        deallocate( center )
+    end subroutine clusterEdgeList
 
 
     ! initialize 1 cell. rsim must be set beforehand.
