@@ -26,23 +26,25 @@ open(unit=10, file='prtclLocation.dat', action='write', status='replace')
 write(10,*) ' '
 close(10)
 
+! set total number of cell in system
+cellTotal = 10
 ! set total number of runs
-runTotal = 200
-ntTotal  = 5000
+runTotal = 1
+ntTotal  = 100
 ntItl    = 5000
 ! set total possible number of particles in system
 prtclTotal = 1000
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 1.0_b8
+    rsim(i,2) = 5.0_b8
 end do
 ! initialize particle movement step size
 dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
 dr(2) = (rsim(2,2) - rsim(2,1)) / 50.0_b8
 dr(3) = (rsim(3,2) - rsim(3,1)) / 50.0_b8
-! set total number of cell in system
-cellTotal = 1
+! set time-steps needed for sytem to reach equilibrium
+ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
@@ -54,11 +56,13 @@ allocate( timeCount( ntTotal))
 ! initialize concentration array
 call allocateConcentration( 100, rsim, concentration)
 
+write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '  Ninitial =', prtclTotal/2
 do i = 1, 3
-    write(*,*) 'dr =', dr(1)
+    write(*,*) 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
+write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
 
 call init_random_seed()
@@ -80,7 +84,10 @@ do run = 1, runTotal
     cellPolar(:,:)   = 0.0_b8
     cellArray(:,:,:) = 0.0_b8
     ! initialize cell position
-    call initOneCell( cellTotal, rsim, cellArray)
+    ! call itlClusterSys( cellTotal, cellArray, rsim)
+    call itlCellCluster( cellTotal, cellArray, rsim)
+    ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
+
     ! initialize particle positions
     nt = 1
     prtclArray(:,:) = 0.0_b8
@@ -94,15 +101,19 @@ do run = 1, runTotal
     ! call wrtPrtclLocation( prtclTotal, nt, prtclArray)
     ! call concentrationUpdate( prtclTotal, prtclArray, concentration)
 
-    ! move particles for some number of timesteps
-    do nt = 2, ntTotal+ntItl
-
+    ! let system reach equilibrium
+    do nt = 1, ntItl
+        call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+        ! add flux of particles
+        call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+    enddo
+    ! gather statistics
+    do nt = 1, ntTotal
         ! update particle location and check boundary conditions
         ! call prtclUpdate2( prtclTotal, dr, rsim, prtclArray)
         call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
         ! add flux of particles
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
-
         ! output particle locations
         ! if ( mod(nt,3000) == 0 ) then
         !     call wrtPrtclLocation( prtclTotal, nt, prtclArray)
@@ -116,18 +127,14 @@ do run = 1, runTotal
         ! end if
 
         ! LONG TIME: count the particles within a cell
-        ! if ( nt >= 3000 .AND. mod(nt,50) == 0 ) then
-        if ( nt > ntItl ) then
-        ! if ( nt >= 300 .AND. nt < 301 ) then
-            ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-            ! timeCount(nt-ntItl) = float(countArray(1))
-            ! write(100+run,*) countArray(1), nt-3000
-            call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-            do j = 1, 3
-                timePolar(j,nt-ntItl) = sum(cellPolar(:,j))
-            enddo
-            ! call wrtPlrTotal( run, cellTotal, cellPolar, nt-3000)
-        end if
+        ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
+        ! timeCount(nt) = float(countArray(1))
+        ! write(100+run,*) countArray(1), nt-3000
+        call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        do j = 1, 3
+            timePolar(j,nt) = sum(cellPolar(:,j))
+        enddo
+        ! call wrtPlrTotal( run, cellTotal, cellPolar, nt-3000)
     enddo
 
     ! calculate and output time averaged molecule count
@@ -407,33 +414,6 @@ contains
             enddo
         enddo
     end subroutine cellCount
-
-
-    subroutine initOneCell( N, rsim, cellArray)
-        implicit none
-        integer,  intent(in)  :: N
-        real(b8), intent(in)  :: rsim(:,:)
-        real(b8), intent(out) :: cellArray(:,:,:)
-        real(b8) :: a, center(3)
-        integer :: i
-        if ( N > 1 ) then
-            write(*,*) 'error: cellTotal > 1'
-            write(*,*) 'only 1 cell will be initialized'
-            write(*,*)
-        end if
-        ! calculate the center of the cell
-        do i = 1, 3
-            center(i) = (rsim(i,2) - rsim(i,1)) / 2.0_b8
-        enddo
-        ! set the cell length
-        a = (rsim(1,2) - rsim(1,1)) / 2.0_b8
-        do i = 1, 3
-            ! cellArray(1,i,1) = center(i) - ( a / 2.0_b8 )
-            ! cellArray(1,i,2) = center(i) + ( a / 2.0_b8 )
-            cellArray(1,i,1) = center(i) - ( 0.250_b8 )
-            cellArray(1,i,2) = center(i) + ( 0.250_b8 )
-        enddo
-    end subroutine initOneCell
 
 
     ! output total cluster polarization to fort.141
