@@ -224,7 +224,6 @@ contains
             do j = 1, 3
                 center(i,j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / 2.0_b8
             enddo
-            write(*,*) 'cell', i, 'center =', center(i,:)
         enddo
         edgeList(:) = 1
         do n1 = 1, cellTotal
@@ -240,7 +239,6 @@ contains
                 dcell = dsqrt(dcell)
                 if ( dcell >= 2.0*rCell-0.000001 .AND. dcell <= 2.0*rCell+0.000001 ) then
                     check = check + 1
-                    write(*,*) 'cell', n1, 'check =', check, 'cell 2 =', n2
                 end if
                 if ( check > 5 ) then
                     edgeList(n1) = 0

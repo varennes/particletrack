@@ -5,8 +5,6 @@ use sysconfig
 
 implicit none
 
-! integer, parameter:: b8 = selected_real_kind(14)
-
 integer :: i, j, nt, ntItl, ntTotal, run, runTotal
 integer :: prtclTotal
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
@@ -27,24 +25,24 @@ write(10,*) ' '
 close(10)
 
 ! set total number of cell in system
-cellTotal = 7
+cellTotal = 1
 ! set total number of runs
 runTotal = 1
-ntTotal  = 100
-ntItl    = 5000
-! set total possible number of particles in system
-prtclTotal = 5000
+ntTotal  = 1000
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 5.0_b8
+    rsim(i,2) = 1.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 50.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 50.0_b8
+dr(1) = (rsim(1,2) - rsim(1,1)) / 100.0_b8
+dr(2) = (rsim(2,2) - rsim(2,1)) / 100.0_b8
+dr(3) = (rsim(3,2) - rsim(3,1)) / 100.0_b8
 ! set time-steps needed for sytem to reach equilibrium
 ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+! set total possible number of particles in system
+prtclTotal = 200
+
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
@@ -60,6 +58,7 @@ call allocateConcentration( 100, rsim, concentration)
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '  Ninitial =', prtclTotal/2
+write(*,*) '#/timestep =', (prtclTotal/2) / 100 ! the number of particles added per timestep
 do i = 1, 3
     write(*,*) 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
@@ -68,14 +67,6 @@ write(*,*)
 
 call init_random_seed()
 
-! call itlCellCluster( cellTotal, cellArray, rsim)
-! do i = 1, cellTotal
-!     write(*,*) 'cell', i
-!     do j = 1, 3
-!         write(*,*) cellArray(i,j,:)
-!     enddo
-! enddo
-! write(*,*)
 
 do run = 1, runTotal
     write(*,*) ' run', run
@@ -87,16 +78,12 @@ do run = 1, runTotal
     ! initialize cell position
     ! call itlClusterSys( cellTotal, cellArray, rsim)
     call itlCellCluster( cellTotal, cellArray, rsim)
-    call wrtOutClusterSys( cellTotal, cellArray, rsim)
-    ! for EC polarization, find which cells are on the cluster edge
-    edgeList = 0
-    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    write(*,*)
-    do i = 1, cellTotal
-        if ( edgeList(i) == 1 ) then
-            write(*,*) 'edge cell, i =', i
-        end if
-    enddo
+    ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
+
+    !!!  EC polarization  !!!
+    !!! find which cells are on the cluster edge !!!
+    ! edgeList = 0
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
     ! initialize particle positions
     nt = 1
@@ -117,23 +104,13 @@ do run = 1, runTotal
         ! add flux of particles
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
     enddo
+
     ! gather statistics
-    do nt = 1, 1
-        !!! test EC subroutine
-        call cellpolarEC( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-        write(*,*)
-        do i = 1, cellTotal
-            write(*,*) 'p vector, cell', i, cellPolar(i,:)
-        enddo
+    do nt = 1, ntTotal
         ! update particle location and check boundary conditions
-        ! call prtclUpdate2( prtclTotal, dr, rsim, prtclArray)
         call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
         ! add flux of particles
         call prtclFlux( prtclTotal, dr, rsim, prtclArray)
-        ! output particle locations
-        ! if ( mod(nt,3000) == 0 ) then
-        !     call wrtPrtclLocation( prtclTotal, nt, prtclArray)
-        ! end if
 
         ! INSTANTANEOUS
         ! if ( nt == ntTotal+300 ) then
@@ -143,23 +120,24 @@ do run = 1, runTotal
         ! end if
 
         ! LONG TIME: count the particles within a cell
-        ! call cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-        ! timeCount(nt) = float(countArray(1))
-        ! write(100+run,*) countArray(1), nt-3000
         call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
         do j = 1, 3
             timePolar(j,nt) = sum(cellPolar(:,j))
         enddo
-        ! call wrtPlrTotal( run, cellTotal, cellPolar, nt-3000)
     enddo
 
     ! calculate and output time averaged molecule count
-    ! meanCount = sum(timeCount) / float(ntTotal)
-    ! write(100,*) meanCount, run
     do j = 1, 3
         cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
     enddo
-    write(200,*) cellPolar(1,:), run
+    ! write(200,*) cellPolar(1,:), run
+    write(200,"(E16.8)", advance="no") cellPolar(1,1)
+    write(200,"(E17.8)", advance="no") cellPolar(1,2)
+    write(200,"(E17.8)", advance="no") cellPolar(1,3)
+    write(200,"(I7)", advance="no")    run
+    write(200,*) ''
+
 enddo
 
 deallocate( prtclArray)
@@ -397,7 +375,7 @@ contains
                         endif
                     endif
                 enddo
-                write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell
+                ! write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell
                 cellPolar(i,:) = nCell * q
             end if
         enddo
