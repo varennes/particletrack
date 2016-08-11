@@ -3,8 +3,14 @@ module sysconfig
 
 ! b8 will be used to define reals with 14 digits
 integer,  parameter :: b8 = selected_real_kind(14)
-! set radius of the cell
-real(b8), parameter :: rCell = 0.200_b8
+
+!!!  SIMULATION PARAMETERS  [start] !!!
+integer,  parameter ::  runTotal = 1      ! total number of runs
+integer,  parameter :: cellTotal = 1      ! total number of cells in system
+real(b8), parameter :: rCell = 0.200_b8   ! radius of the cell
+integer,  parameter :: ntTotal    = 1     ! total number of timesteps
+integer,  parameter :: prtclTotal = 10000 ! total possible number of particles in system
+!!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
 

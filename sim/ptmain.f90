@@ -6,30 +6,22 @@ use particle
 
 implicit none
 
-integer :: i, j, nt, ntItl, ntTotal, run, runTotal, size
-integer :: prtclTotal
+integer :: i, j, nt, ntItl, run, size
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
-integer :: cellTotal
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: countArray(:), edgeList(:)
 real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
 real(b8), allocatable :: timePolar(:,:), timeCount(:)
-
 
 ! open/create file
 open(unit=10, file='prtclLocation.dat', action='write', status='replace')
 write(10,*) ' '
 close(10)
 
-! set total number of cell in system
-cellTotal = 1
-! set total number of runs
-runTotal = 100
-ntTotal  = 1
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
@@ -40,10 +32,7 @@ dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
 dr(2) = (rsim(2,2) - rsim(2,1)) / 50.0_b8
 dr(3) = (rsim(3,2) - rsim(3,1)) / 50.0_b8
 ! set time-steps needed for sytem to reach equilibrium
-ntItl = 100 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
-ntItl = 10000
-! set total possible number of particles in system
-prtclTotal = 10000
+ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
