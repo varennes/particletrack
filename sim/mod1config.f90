@@ -5,11 +5,11 @@ module sysconfig
 integer,  parameter :: b8 = selected_real_kind(14)
 
 !!!  SIMULATION PARAMETERS  [start] !!!
-integer,  parameter ::  runTotal = 1      ! total number of runs
-integer,  parameter :: cellTotal = 1      ! total number of cells in system
-real(b8), parameter :: rCell = 0.200_b8   ! radius of the cell
+integer,  parameter ::  runTotal = 3      ! total number of runs
+integer,  parameter :: cellTotal = 3      ! total number of cells in system
+real(b8), parameter :: rCell = 0.10_b8   ! radius of the cell
 integer,  parameter :: ntTotal    = 1     ! total number of timesteps
-integer,  parameter :: prtclTotal = 10000 ! total possible number of particles in system
+integer,  parameter :: prtclTotal = 1000 ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
@@ -284,5 +284,23 @@ contains
         enddo
     end subroutine initOneCell
 
+
+    subroutine wrtCellLocation( cellArray)
+        implicit none
+        real(b8), intent(in) :: cellArray(:,:,:)
+        real(b8) :: center
+        integer  :: i, j
+
+        do i = 1, cellTotal
+            do j = 1, 3
+                center = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+                write(210,'(I4)', advance='no') i
+                write(210,'(I4)', advance='no') j
+                write(210,'(F7.3)', advance='no') center
+                write(210,'(F7.3,F7.3)', advance='no') cellArray(i,j,2), cellArray(i,j,1)
+                write(210,*) ''
+            enddo
+        enddo
+    end subroutine wrtCellLocation
 
 end module

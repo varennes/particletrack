@@ -53,11 +53,11 @@ runCx = 0.0_b8
 write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
-write(*,*) '  Ninitial =', prtclTotal/2
+write(*,*) 'prtcl intl =', prtclTotal/2
 ! write(*,*) '#/timestep =', (prtclTotal/2) / 100 ! the number of particles added per timestep
-write(*,*) '#/timestep =', 5 ! the number of particles added per timestep
+write(*,*) '#/timestep =', nJ ! the number of particles added per timestep
 do i = 1, 3
-    write(*,*) 'dr =', dr(i), 'rsim =', rsim(i,:)
+    write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
 write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
@@ -79,8 +79,8 @@ do run = 1, runTotal
 
     !!!  EC polarization  !!!
     !!! find which cells are on the cluster edge !!!
-    ! edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    edgeList = 0
+    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
     ! initialize particle positions
     nt = 1
@@ -118,51 +118,51 @@ do run = 1, runTotal
 
         ! LONG TIME: count the particles within a cell
         ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        ! ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-        ! do j = 1, 3
-        !     timePolar(j,nt) = sum(cellPolar(:,j))
-        ! enddo
+        call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        do j = 1, 3
+            timePolar(j,nt) = sum(cellPolar(:,j))
+        enddo
     enddo
     ! output particle locations
-    call wrtPrtclLocation( prtclTotal, run, prtclArray)
-    call concentrationUpdate( prtclTotal, prtclArray, size, concentration)
-    ! call concentrationXprj( size, concentration, runCx(run,:))
-    do i = 1, size
-        runCx(run,i) = concentration( i, 2, 3)
-    enddo
+    ! call wrtPrtclLocation( prtclTotal, run, prtclArray)
+    ! call concentrationUpdate( prtclTotal, prtclArray, size, concentration)
+    ! ! call concentrationXprj( size, concentration, runCx(run,:))
+    ! do i = 1, size
+    !     runCx(run,i) = concentration( i, 2, 3)
+    ! enddo
 
     ! calculate and output time averaged molecule count
-    ! do j = 1, 3
-    !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
-    ! enddo
-    ! ! write(200,*) cellPolar(1,:), run
-    ! write(200,"(E16.8)", advance="no") cellPolar(1,1)
-    ! write(200,"(E17.8)", advance="no") cellPolar(1,2)
-    ! write(200,"(E17.8)", advance="no") cellPolar(1,3)
-    ! write(200,"(I7)", advance="no")    run
-    ! write(200,*) ''
+    do j = 1, 3
+        cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
+    enddo
+    write(200,"(E16.8)", advance="no") cellPolar(1,1)
+    write(200,"(E17.8)", advance="no") cellPolar(1,2)
+    write(200,"(E17.8)", advance="no") cellPolar(1,3)
+    write(200,"(I7)", advance="no")    run
+    write(200,*) ''
+    ! call wrtCellLocation( cellArray)
 
 enddo
 
 ! write concentration x projection
-do i = 1, size
-    avg = sum(runCx(:,i)) / float(runTotal)
-    var = 0.0_b8
-    do j = 1, runTotal
-        var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
-    enddo
-    write(300,"(E16.8)", advance="no") avg
-    write(300,"(E16.8)", advance="no") var
-    write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - 0.050_b8
-    write(300,*) ''
-enddo
-
-do i = 1, size
-    do j = 1, runTotal
-        write(310,'(E17.8)', advance='no') runCx(j,i)
-    enddo
-    write(310,*) ''
-enddo
+! do i = 1, size
+!     avg = sum(runCx(:,i)) / float(runTotal)
+!     var = 0.0_b8
+!     do j = 1, runTotal
+!         var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
+!     enddo
+!     write(300,"(E16.8)", advance="no") avg
+!     write(300,"(E16.8)", advance="no") var
+!     write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - 0.050_b8
+!     write(300,*) ''
+! enddo
+!
+! do i = 1, size
+!     do j = 1, runTotal
+!         write(310,'(E17.8)', advance='no') runCx(j,i)
+!     enddo
+!     write(310,*) ''
+! enddo
 
 deallocate( prtclArray)
 deallocate( cellArray)
@@ -231,6 +231,16 @@ contains
         integer :: i, j, k
 
         cellPolar(:,:) = 0.0_b8
+
+        ! calculate Cluster COM
+        clstrCOM = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 3
+                clstrCOM(j) = clstrCOM(j) + cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
+            enddo
+        enddo
+        clstrCOM(:) = clstrCOM(:) / float(cellTotal)
+
         do i = 1, cellTotal
             nCell = 0.0_b8
             ! check if cell is on the edge of the cluster
