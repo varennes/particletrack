@@ -1,8 +1,8 @@
 program diff
-! test diffusion in a 3d lattice
 
 use sysconfig
 use particle
+use polarization
 
 implicit none
 
@@ -25,7 +25,7 @@ close(10)
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 1.0_b8
+    rsim(i,2) = 10.0_b8
 end do
 ! initialize particle movement step size
 dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
@@ -74,7 +74,8 @@ do run = 1, runTotal
     cellArray(:,:,:) = 0.0_b8
     ! initialize cell position
     ! call itlClusterSys( cellTotal, cellArray, rsim)
-    call itlCellCluster( cellTotal, cellArray, rsim)
+    ! call itlCellCluster( cellTotal, cellArray, rsim)
+    call itl2DCellCluster( cellTotal, cellArray, rsim)
     ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     !!!  EC polarization  !!!
@@ -118,7 +119,8 @@ do run = 1, runTotal
 
         ! LONG TIME: count the particles within a cell
         ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
         do j = 1, 3
             timePolar(j,nt) = sum(cellPolar(:,j))
         enddo
@@ -135,12 +137,8 @@ do run = 1, runTotal
     do j = 1, 3
         cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
     enddo
-    write(200,"(E16.8)", advance="no") cellPolar(1,1)
-    write(200,"(E17.8)", advance="no") cellPolar(1,2)
-    write(200,"(E17.8)", advance="no") cellPolar(1,3)
-    write(200,"(I7)", advance="no")    run
-    write(200,*) ''
-    ! call wrtCellLocation( cellArray)
+    call wrtPlrTotal( run, cellPolar)
+     ! call wrtCellLocation( cellArray)
 
 enddo
 
@@ -172,7 +170,6 @@ deallocate( countArray)
 deallocate( timeCount)
 
 contains
-
 
     subroutine concentrationUpdate( prtclTotal, prtclArray, size, concentration)
         implicit none
@@ -219,177 +216,6 @@ contains
     end subroutine concentrationXprj
 
 
-    ! calculate EC cell polarization
-    ! individual cell polarization vectors are NOT adaptive
-    subroutine cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-        implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
-        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
-        real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: clstrCOM(3), cellCOM(3,2), center(3), check, q(3)
-        real(b8) :: nCell, nCOM
-        integer :: i, j, k
-
-        cellPolar(:,:) = 0.0_b8
-
-        ! calculate Cluster COM
-        clstrCOM = 0.0_b8
-        do i = 1, cellTotal
-            do j = 1, 3
-                clstrCOM(j) = clstrCOM(j) + cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-        enddo
-        clstrCOM(:) = clstrCOM(:) / float(cellTotal)
-
-        do i = 1, cellTotal
-            nCell = 0.0_b8
-            ! check if cell is on the edge of the cluster
-            if ( edgeList(i) == 1 ) then
-                q = 0.0_b8
-                do j = 1, 3
-                    center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-                    q(j) = center(j) - clstrCOM(j)
-                enddo
-                q = q / sqrt(dot_product(q,q))
-                ! calculate the concentration in cell i
-                do j = 1, prtclTotal
-                    if ( prtclArray(j,4) == 1.0_b8 ) then
-                        check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                            if ( check < 0.0 ) then
-                                check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                                if ( check < 0.0 ) then
-                                    nCell = nCell + 1.0_b8
-                                endif
-                            endif
-                        endif
-                    endif
-                enddo
-                ! write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell
-                cellPolar(i,:) = nCell * q
-            end if
-        enddo
-    end subroutine cellpolarECNonAdpt
-
-
-    ! calculate EC cell polarization
-    subroutine cellpolarEC( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-        implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
-        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
-        real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: clstrCOM(3), cellCOM(3,2), center(3), check, q(3)
-        real(b8) :: nCell, nCOM
-        integer :: i, j, k
-
-        cellPolar(:,:) = 0.0_b8
-        ! calculate Cluster COM
-        clstrCOM = 0.0_b8
-        do i = 1, cellTotal
-            do j = 1, 3
-                clstrCOM(j) = clstrCOM(j) + cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-        enddo
-        clstrCOM(:) = clstrCOM(:) / float(cellTotal)
-        do i = 1,3
-            cellCOM(i,1)  = clstrCOM(i) - (cellArray(1,i,2) - cellArray(1,i,1)) / (2.0_b8)
-            cellCOM(i,2)  = clstrCOM(i) + (cellArray(1,i,2) - cellArray(1,i,1)) / (2.0_b8)
-        enddo
-        write(*,*) 'cluster COM', clstrCOM
-        write(*,*) '  cluster x',cellCOM(1,:), '  cluster y',cellCOM(2,:),'  cluster z',cellCOM(3,:)
-        ! calculate concentration at COM
-        nCOM = 0.0_b8
-        do i = 1, prtclTotal
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                check = (prtclArray(i,1)-cellCOM(1,1))*(prtclArray(i,1)-cellCOM(1,2))
-                if ( check < 0.0 ) then
-                    check = (prtclArray(i,2)-cellCOM(2,1))*(prtclArray(i,2)-cellCOM(2,2))
-                    if ( check < 0.0 ) then
-                        check = (prtclArray(i,3)-cellCOM(3,1))*(prtclArray(i,3)-cellCOM(3,2))
-                        if ( check < 0.0 ) then
-                            nCOM = nCOM + 1.0_b8
-                        end if
-                    end if
-                end if
-            end if
-        enddo
-
-        cellPolar(:,:) = 0.0_b8
-        do i = 1, cellTotal
-            nCell = 0.0_b8
-            ! check if cell is on the edge of the cluster
-            if ( edgeList(i) == 1 ) then
-                q = 0.0_b8
-                do j = 1, 3
-                    center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-                    q(j) = center(j) - clstrCOM(j)
-                enddo
-                q = q / sqrt(dot_product(q,q))
-                ! calculate the concentration in cell i
-                do j = 1, prtclTotal
-                    if ( prtclArray(j,4) == 1.0_b8 ) then
-                        check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                            if ( check < 0.0 ) then
-                                check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                                if ( check < 0.0 ) then
-                                    nCell = nCell + 1.0_b8
-                                endif
-                            endif
-                        endif
-                    endif
-                enddo
-                write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell, 'nCOM =', nCOM
-                cellPolar(i,:) = q * (nCell - nCOM)
-            end if
-        enddo
-    end subroutine cellpolarEC
-
-
-    ! calculate MW cell polarization
-    subroutine cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal
-        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
-        real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: center(3), check, q(3), qtot(3)
-        integer :: i, j, k
-        cellPolar(:,:) = 0.0_b8
-        qtot = 0.0_b8
-        do i = 1, cellTotal
-            do j = 1, 3
-                center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-            qtot = 0.0_b8
-            do j = 1, prtclTotal
-                q = 0.0_b8
-                if ( prtclArray(j,4) == 1.0_b8 ) then
-                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                    if ( check < 0.0 ) then
-                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                            if ( check < 0.0 ) then
-                                do k = 1, 3
-                                    q(k) = prtclArray(j,k) - center(k)
-                                enddo
-                                q = q / sqrt(dot_product(q,q))
-                                ! q = q
-                            endif
-                        endif
-                    endif
-                endif
-                qtot = qtot + q
-            enddo
-            ! cellPolar(i,:) = qtot / sqrt(dot_product(qtot,qtot))
-            cellPolar(i,:) = qtot
-        enddo
-
-    end subroutine cellpolarMW
-
-
     ! count the number of particels within cells volume
     subroutine cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
         implicit none
@@ -419,30 +245,6 @@ contains
             enddo
         enddo
     end subroutine cellCount
-
-
-    ! output total cluster polarization to fort.141
-    subroutine wrtPlrTotal( nRun, cellTotal, cellPolar, nt)
-        implicit none
-        integer,  intent(in) :: cellTotal, nRun, nt
-        real(b8), intent(in), dimension(:,:) :: cellPolar
-        real(b8) :: px, py, pz
-        integer  :: i
-
-        px = 0.0_b8
-        py = 0.0_b8
-        pz = 0.0_b8
-        do i = 1, cellTotal
-            px = px + cellPolar(i,1)
-            py = py + cellPolar(i,2)
-            pz = pz + cellPolar(i,3)
-        enddo
-        write(100+nRun,"(E16.8)", advance="no") px
-        write(100+nRun,"(E17.8)", advance="no") py
-        write(100+nRun,"(E17.8)", advance="no") pz
-        write(100+nRun,"(I10)", advance="no")   nt
-        write(100+nRun,*) ''
-    end subroutine wrtPlrTotal
 
 end program
 

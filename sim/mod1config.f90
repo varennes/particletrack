@@ -5,11 +5,11 @@ module sysconfig
 integer,  parameter :: b8 = selected_real_kind(14)
 
 !!!  SIMULATION PARAMETERS  [start] !!!
-integer,  parameter ::  runTotal = 3      ! total number of runs
-integer,  parameter :: cellTotal = 3      ! total number of cells in system
-real(b8), parameter :: rCell = 0.10_b8   ! radius of the cell
-integer,  parameter :: ntTotal    = 1     ! total number of timesteps
-integer,  parameter :: prtclTotal = 1000 ! total possible number of particles in system
+integer,  parameter ::  runTotal = 1       ! total number of runs
+integer,  parameter :: cellTotal = 200      ! total number of cells in system
+real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
+integer,  parameter :: ntTotal    = 1      ! total number of timesteps
+integer,  parameter :: prtclTotal = 1000   ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
@@ -128,9 +128,8 @@ contains
         integer,  intent(in)  :: cellTotal
         real(b8), intent(out) :: cellArray(:,:,:)
         real(b8), intent(in)  :: rsim(:,:)
-        ! real(b8) :: rCell, test(3), center(cellTotal,3)
-        real(b8) :: r, rCell
         real(b8), allocatable :: center(:,:), dr(:,:), test(:)
+        real(b8) :: r
         integer :: cellCheck, i, ii, j, k, n
 
         allocate( dr(6,3) )
@@ -138,8 +137,6 @@ contains
         allocate( center(cellTotal,3) )
         center(:,:)      = 0.0_b8
         cellArray(:,:,:) = 0.0_b8
-        ! set radius of the cell
-        rCell = 0.200_b8
         ! set dr
         dr(:,:) = 0.0_b8
         do i = 1, 3
@@ -200,6 +197,88 @@ contains
         deallocate( test )
         deallocate( center )
     end subroutine itlCellCluster
+
+
+    ! initialize positions of cells to form a 2D cluster
+    subroutine itl2DCellCluster( cellTotal, cellArray, rsim)
+        implicit none
+        integer,  intent(in)  :: cellTotal
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8), intent(in)  :: rsim(:,:)
+        ! real(b8) :: rCell, test(3), center(cellTotal,3)
+        real(b8) :: hCell, r
+        real(b8), allocatable :: center(:,:), dr(:,:), test(:)
+        integer :: cellCheck, i, ii, j, k, n
+
+        allocate( dr(4,2) )
+        allocate( test(3) )
+        allocate( center(cellTotal,3) )
+        center(:,:)      = 0.0_b8
+        cellArray(:,:,:) = 0.0_b8
+        ! set cell height
+        hCell = 0.10_b8
+        ! set dr
+        dr(:,:) = 0.0_b8
+        dr(1,1) =  rCell * 2.0_b8
+        dr(2,2) =  rCell * 2.0_b8
+        dr(3,1) = -rCell * 2.0_b8
+        dr(4,2) = -rCell * 2.0_b8
+        ! set center and cellArray for cell 1
+        center(1,1) = (rsim(1,2) - rsim(1,1)) / 2.0_b8
+        center(1,2) = (rsim(2,2) - rsim(2,1)) / 2.0_b8
+        center(1,3) = (rsim(3,2) - rsim(3,1)) / 2.0_b8
+        do i = 1, 2
+            cellArray(1,i,1) = center(1,i) - rCell
+            cellArray(1,i,2) = center(1,i) + rCell
+        enddo
+        cellArray(1,3,1) = center(1,3) - hCell
+        cellArray(1,3,2) = center(1,3) + hCell
+        if ( cellTotal == 1 ) then
+            return
+        end if
+        ! set center and cellArray for cells 2 to cellTotal
+        n = 1
+        i = 2
+        do while ( i <= cellTotal .AND. n <= cellTotal )
+            call random_number(r)
+            j = 1 + floor( r * 4.0 )
+            do k = 1, 4
+                ! set test location for cell center i
+                test(1) = center(n,1) + dr(j,1)
+                test(2) = center(n,2) + dr(j,2)
+                test(3) = center(n,3)
+                cellCheck = 0
+                do ii = 1, i-1
+                    ! check that no other cell center occupy test location
+                    if ( center(ii,1) == test(1) .AND. center(ii,2) == test(2) ) then
+                        cellCheck = 1
+                    end if
+                enddo
+                if ( cellCheck == 0 ) then
+                    center(i,:) = test
+                    do ii = 1, 2
+                        cellArray(i,ii,1) = test(ii) - rCell
+                        cellArray(i,ii,2) = test(ii) + rCell
+                    enddo
+                    cellArray(i,3,1) = test(3) - hCell
+                    cellArray(i,3,2) = test(3) + hCell
+                    i = i + 1
+                end if
+                if ( i > cellTotal ) then
+                    exit
+                else
+                    j = j + 1
+                    if( j > 4 )then
+                        j = 1
+                    endif
+                endif
+            enddo
+            n = n + 1
+        enddo
+        deallocate( dr )
+        deallocate( test )
+        deallocate( center )
+    end subroutine itl2DCellCluster
 
 
     ! make a list of cells which are on the perimeter
