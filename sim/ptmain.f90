@@ -2,10 +2,11 @@ program diff
 ! test diffusion in a 3d lattice
 
 use sysconfig
+use particle
 
 implicit none
 
-integer :: i, j, nt, ntItl, ntTotal, run, runTotal
+integer :: i, j, nt, ntItl, ntTotal, run, runTotal, size
 integer :: prtclTotal
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: r
@@ -13,9 +14,9 @@ real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
 integer :: cellTotal
-real(b8) :: meanCount, varCount
+real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: countArray(:), edgeList(:)
-real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:)
+real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
 real(b8), allocatable :: timePolar(:,:), timeCount(:)
 
 
@@ -27,21 +28,22 @@ close(10)
 ! set total number of cell in system
 cellTotal = 1
 ! set total number of runs
-runTotal = 1
-ntTotal  = 1000
+runTotal = 100
+ntTotal  = 1
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
     rsim(i,2) = 1.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 100.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 100.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 100.0_b8
+dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
+dr(2) = (rsim(2,2) - rsim(2,1)) / 50.0_b8
+dr(3) = (rsim(3,2) - rsim(3,1)) / 50.0_b8
 ! set time-steps needed for sytem to reach equilibrium
-ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+ntItl = 100 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+ntItl = 10000
 ! set total possible number of particles in system
-prtclTotal = 200
+prtclTotal = 10000
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -53,12 +55,18 @@ allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 
 ! initialize concentration array
-call allocateConcentration( 100, rsim, concentration)
+size = 10
+allocate( concentration( size, size, size))
+allocate(runCx(runTotal,size))
+concentration = 0.0_b8
+runCx = 0.0_b8
 
+write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '  Ninitial =', prtclTotal/2
-write(*,*) '#/timestep =', (prtclTotal/2) / 100 ! the number of particles added per timestep
+! write(*,*) '#/timestep =', (prtclTotal/2) / 100 ! the number of particles added per timestep
+write(*,*) '#/timestep =', 5 ! the number of particles added per timestep
 do i = 1, 3
     write(*,*) 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
@@ -69,7 +77,7 @@ call init_random_seed()
 
 
 do run = 1, runTotal
-    write(*,*) ' run', run
+    ! write(*,*) ' run', run
 
     timeCount(:)     = 0.0_b8
     countArray(:)    = 0
@@ -120,24 +128,51 @@ do run = 1, runTotal
         ! end if
 
         ! LONG TIME: count the particles within a cell
-        call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-        do j = 1, 3
-            timePolar(j,nt) = sum(cellPolar(:,j))
-        enddo
+        ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        ! ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        ! do j = 1, 3
+        !     timePolar(j,nt) = sum(cellPolar(:,j))
+        ! enddo
+    enddo
+    ! output particle locations
+    call wrtPrtclLocation( prtclTotal, run, prtclArray)
+    call concentrationUpdate( prtclTotal, prtclArray, size, concentration)
+    ! call concentrationXprj( size, concentration, runCx(run,:))
+    do i = 1, size
+        runCx(run,i) = concentration( i, 2, 3)
     enddo
 
     ! calculate and output time averaged molecule count
-    do j = 1, 3
-        cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
-    enddo
-    ! write(200,*) cellPolar(1,:), run
-    write(200,"(E16.8)", advance="no") cellPolar(1,1)
-    write(200,"(E17.8)", advance="no") cellPolar(1,2)
-    write(200,"(E17.8)", advance="no") cellPolar(1,3)
-    write(200,"(I7)", advance="no")    run
-    write(200,*) ''
+    ! do j = 1, 3
+    !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
+    ! enddo
+    ! ! write(200,*) cellPolar(1,:), run
+    ! write(200,"(E16.8)", advance="no") cellPolar(1,1)
+    ! write(200,"(E17.8)", advance="no") cellPolar(1,2)
+    ! write(200,"(E17.8)", advance="no") cellPolar(1,3)
+    ! write(200,"(I7)", advance="no")    run
+    ! write(200,*) ''
 
+enddo
+
+! write concentration x projection
+do i = 1, size
+    avg = sum(runCx(:,i)) / float(runTotal)
+    var = 0.0_b8
+    do j = 1, runTotal
+        var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
+    enddo
+    write(300,"(E16.8)", advance="no") avg
+    write(300,"(E16.8)", advance="no") var
+    write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - 0.050_b8
+    write(300,*) ''
+enddo
+
+do i = 1, size
+    do j = 1, runTotal
+        write(310,'(E17.8)', advance='no') runCx(j,i)
+    enddo
+    write(310,*) ''
 enddo
 
 deallocate( prtclArray)
@@ -148,183 +183,18 @@ deallocate( countArray)
 deallocate( timeCount)
 
 contains
-    ! gradient is assumed to be in the x-direction (1)
-    ! add flux of particles at top x-boundary
-    subroutine prtclFlux( N, dr, rsim, prtclArray)
+
+
+    subroutine concentrationUpdate( prtclTotal, prtclArray, size, concentration)
         implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
-        real(b8), intent(inout) :: prtclArray(:,:)
-        real(b8) :: a, d, g
-        integer  :: i, j, k, nJ
-        ! add flux to top boundary
-        nJ = N / 100 ! nJ is the number of particles added
-        if ( nJ == 0 ) then
-            nJ = 1
-        end if
-        do i = 1, nJ
-            j = 1
-            do while( prtclArray(j,4) == 1.0_b8 )
-                j = j + 1
-                if ( j > N ) then
-                    exit
-                end if
-            enddo
-            if ( j > N ) then
-                exit
-            end if
-            prtclArray(j,4) = 1.0_b8
-            call random_number(r)
-            prtclArray(j,1) = rsim(1,2) - r*dr(1)
-            do k = 2, 3
-                call random_number(r) ! cpm code used ran1() function
-                prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
-            enddo
-        enddo
-    end subroutine prtclFlux
-
-
-    ! move particles and check boundary conditions
-    subroutine prtclUpdate( N, dr, rsim, prtclArray)
-        implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
-        real(b8), intent(inout) :: prtclArray(:,:)
-        integer  :: i, dim
-        real(b8) :: r
-
-        do i = 1, N
-            ! check whether array index corresponds to a particle
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                ! move the particle by distance dr(j) in random direction
-                call random_number(r)
-                if ( r < (1.0_b8/6.0_b8) ) then
-                    dim = 1
-                    prtclArray(i,1) = prtclArray(i,1) - dr(1)
-                elseif( r < (2.0_b8/6.0_b8) )then
-                    dim = 1
-                    prtclArray(i,1) = prtclArray(i,1) + dr(1)
-                elseif( r < (3.0_b8/6.0_b8) )then
-                    dim = 2
-                    prtclArray(i,2) = prtclArray(i,2) - dr(2)
-                elseif( r < (4.0_b8/6.0_b8) )then
-                    dim = 2
-                    prtclArray(i,2) = prtclArray(i,2) + dr(2)
-                elseif( r < (5.0_b8/6.0_b8) )then
-                    dim = 3
-                    prtclArray(i,3) = prtclArray(i,3) - dr(3)
-                else
-                    dim = 3
-                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
-                endif
-
-                ! check boundary conditions
-                if ( dim /= 1 ) then
-                    ! periodic boundaries perpendicular to gradient
-                    do j = 2, 3
-                        if( prtclArray(i,j) < rsim(j,1) )then
-                            ! write(*,*) 'too small', prtclArray(i,j), i, j
-                            prtclArray(i,j) = rsim(j,2) - (rsim(j,1) - prtclArray(i,j))
-                            exit
-                        elseif( prtclArray(i,j) > rsim(j,2) )then
-                            ! write(*,*) 'too big', prtclArray(i,j), i, j
-                            prtclArray(i,j) = (prtclArray(i,j) - rsim(j,2)) + rsim(j,1)
-                            exit
-                        endif
-                    enddo
-                else
-                    ! absorbing boundary parallel to gradient
-                    if( (prtclArray(i,dim)<rsim(dim,1)) .OR. (prtclArray(i,dim)>rsim(dim,2)) )then
-                        ! write(*,*) 'absorbed', prtclArray(i,dim), i
-                        prtclArray(i,4) = 0.0_b8
-                    endif
-                endif
-            endif
-        enddo
-    end subroutine prtclUpdate
-
-
-    ! move particles and check boundary conditions
-    ! all boundaries are periodic
-    subroutine prtclUpdate2( N, dr, rsim, prtclArray)
-        implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
-        real(b8), intent(inout) :: prtclArray(:,:)
-        integer  :: i
-        real(b8) :: r
-
-        do i = 1, N
-            ! check whether array index corresponds to a particle
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                ! move the particle by distance dr(j) in random direction
-                call random_number(r)
-                if ( r < (1.0_b8/6.0_b8) ) then
-                    prtclArray(i,1) = prtclArray(i,1) - dr(1)
-                elseif( r < (2.0_b8/6.0_b8) )then
-                    prtclArray(i,1) = prtclArray(i,1) + dr(1)
-                elseif( r < (3.0_b8/6.0_b8) )then
-                    prtclArray(i,2) = prtclArray(i,2) - dr(2)
-                elseif( r < (4.0_b8/6.0_b8) )then
-                    prtclArray(i,2) = prtclArray(i,2) + dr(2)
-                elseif( r < (5.0_b8/6.0_b8) )then
-                    prtclArray(i,3) = prtclArray(i,3) - dr(3)
-                else
-                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
-                endif
-
-                ! check periodic boundary conditions
-                do j = 1, 3
-                    if( prtclArray(i,j) < rsim(j,1) )then
-                        ! write(*,*) 'too small', prtclArray(i,j), i, j
-                        prtclArray(i,j) = rsim(j,2) - (rsim(j,1) - prtclArray(i,j))
-                        exit
-                    elseif( prtclArray(i,j) > rsim(j,2) )then
-                        ! write(*,*) 'too big', prtclArray(i,j), i, j
-                        prtclArray(i,j) = (prtclArray(i,j) - rsim(j,2)) + rsim(j,1)
-                        exit
-                    endif
-                enddo
-            endif
-        enddo
-    end subroutine prtclUpdate2
-
-
-    ! output particle location data
-    subroutine wrtPrtclLocation( N, nt, prtclArray)
-        implicit none
-        integer,  intent(in) :: N, nt
-        real(b8), intent(in) :: prtclArray(:,:)
-        integer :: i
-        open(unit=11, file='prtclLocation.dat', action='write', status='old')
-        do i = 1, N
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                write(11,*) prtclArray(i,1:3), nt
-            end if
-        enddo
-    end subroutine wrtPrtclLocation
-
-
-    ! assumes a cubic system geometry
-    subroutine allocateConcentration( size, rsim, concentration)
-        implicit none
-        integer,  intent(in)    :: size
-        real(b8), intent(in)    :: rsim(3,2)
-        real(b8), intent(out), allocatable :: concentration(:,:,:)
-        allocate( concentration( size, size, size))
-        concentration = 0.0_b8
-    end subroutine allocateConcentration
-
-
-    subroutine concentrationUpdate( prtclTotal, prtclArray, concentration)
-        implicit none
-        integer,  intent(in)  :: prtclTotal
+        integer,  intent(in)  :: prtclTotal, size
         real(b8), intent(in)  :: prtclArray(:,:)
-        real(b8), intent(out) :: concentration(:,:,:)
+        real(b8), intent(inout) :: concentration(:,:,:)
         real(b8) :: dc, voxl
         integer  :: i, j, k, n
+        concentration = 0.0_b8
         ! set length of voxels
-        voxl = minval(rsim(:,2)) / float(size(concentration(:,1,1)))
+        voxl = minval(rsim(:,2)) / float(size)
         dc   = 1.0_b8
 
         do n = 1, prtclTotal
@@ -336,6 +206,28 @@ contains
             end if
         enddo
     end subroutine concentrationUpdate
+
+
+    ! calculate x projection of concentration by averaging over y, z dimensions
+    subroutine concentrationXprj( size, concentration, xConcentration)
+        implicit none
+        integer, intent(in)   :: size
+        real(b8), intent(in)  :: concentration(:,:,:)
+        real(b8), intent(out) :: xConcentration(:)
+        real(b8) :: mC(size,size)
+        integer :: i, j ,k
+        mC = 0.0_b8
+        ! average over z dimension
+        do i = 1, size
+            do j = 1, size
+                mC(i,j) = sum(concentration(i,j,:)) / float(size)
+            enddo
+        enddo
+        ! average over y dimension
+        do i = 1, size
+            xConcentration(i) = sum(mC(i,:)) / float(size)
+        enddo
+    end subroutine concentrationXprj
 
 
     ! calculate EC cell polarization
@@ -552,6 +444,7 @@ contains
         write(100+nRun,"(I10)", advance="no")   nt
         write(100+nRun,*) ''
     end subroutine wrtPlrTotal
+
 end program
 
 
