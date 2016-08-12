@@ -25,12 +25,12 @@ close(10)
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 10.0_b8
+    rsim(i,2) = 2.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 50.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 50.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 50.0_b8
+dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
+dr(2) = (rsim(2,2) - rsim(2,1)) / 10.0_b8
+dr(3) = (rsim(3,2) - rsim(3,1)) / 10.0_b8
 ! set time-steps needed for sytem to reach equilibrium
 ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
 
@@ -44,7 +44,7 @@ allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 
 ! initialize concentration array
-size = 10
+size = 20
 allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 concentration = 0.0_b8
@@ -66,7 +66,7 @@ call init_random_seed()
 
 
 do run = 1, runTotal
-    ! write(*,*) ' run', run
+    write(*,*) ' run', run
 
     timeCount(:)     = 0.0_b8
     countArray(:)    = 0
@@ -86,7 +86,7 @@ do run = 1, runTotal
     ! initialize particle positions
     nt = 1
     prtclArray(:,:) = 0.0_b8
-    do i = 1, (prtclTotal/2)
+    do i = 1, (prtclTotal/10)
         prtclArray(i,4) = 1.0_b8
         do j = 1, 3
             call random_number(r) ! in cpm code use ran1() function
@@ -119,8 +119,8 @@ do run = 1, runTotal
 
         ! LONG TIME: count the particles within a cell
         ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-        ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+        ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+        call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
         do j = 1, 3
             timePolar(j,nt) = sum(cellPolar(:,j))
         enddo
@@ -138,7 +138,7 @@ do run = 1, runTotal
         cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
     enddo
     call wrtPlrTotal( run, cellPolar)
-     ! call wrtCellLocation( cellArray)
+    ! call wrtCellLocation( cellArray)
 
 enddo
 

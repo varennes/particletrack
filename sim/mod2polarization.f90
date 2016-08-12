@@ -5,8 +5,7 @@ use sysconfig
 
 contains
 
-    ! calculate EC cell polarization
-    ! individual cell polarization vectors are NOT adaptive
+    ! calculate EC cell polarization, individual polarization vectors are NOT adaptive
     subroutine cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
         implicit none
         integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
@@ -17,6 +16,9 @@ contains
         integer :: i, j, k
 
         cellPolar(:,:) = 0.0_b8
+        if ( cellTotal == 1 ) then
+            return
+        end if
 
         ! calculate Cluster COM
         clstrCOM = 0.0_b8
