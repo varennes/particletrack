@@ -13,7 +13,7 @@ real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
-integer,  allocatable :: countArray(:), edgeList(:)
+integer,  allocatable :: edgeList(:)
 real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
 real(b8), allocatable :: timePolar(:,:), timeCount(:)
 
@@ -25,7 +25,7 @@ close(10)
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 2.0_b8
+    rsim(i,2) = 1.0_b8
 end do
 ! initialize particle movement step size
 dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
@@ -39,12 +39,11 @@ allocate( prtclArray( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
-allocate( countArray( cellTotal))
 allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 
 ! initialize concentration array
-size = 20
+size = 10
 allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 concentration = 0.0_b8
@@ -64,24 +63,27 @@ write(*,*)
 
 call init_random_seed()
 
+cellArray(:,:,:) = 0.0_b8
+call itlCellCluster( cellTotal, cellArray, rsim)
+edgeList = 0
+call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
 do run = 1, runTotal
     write(*,*) ' run', run
 
     timeCount(:)     = 0.0_b8
-    countArray(:)    = 0
     cellPolar(:,:)   = 0.0_b8
-    cellArray(:,:,:) = 0.0_b8
+    ! cellArray(:,:,:) = 0.0_b8
     ! initialize cell position
     ! call itlClusterSys( cellTotal, cellArray, rsim)
     ! call itlCellCluster( cellTotal, cellArray, rsim)
-    call itl2DCellCluster( cellTotal, cellArray, rsim)
+    ! call itl2DCellCluster( cellTotal, cellArray, rsim)
     ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     !!!  EC polarization  !!!
     !!! find which cells are on the cluster edge !!!
-    edgeList = 0
-    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    ! edgeList = 0
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
     ! initialize particle positions
     nt = 1
@@ -151,7 +153,7 @@ enddo
 !     enddo
 !     write(300,"(E16.8)", advance="no") avg
 !     write(300,"(E16.8)", advance="no") var
-!     write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - 0.050_b8
+!     write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - (minval(rsim(:,2)) / float(size) / 2.0_b8)
 !     write(300,*) ''
 ! enddo
 !
@@ -166,7 +168,6 @@ deallocate( prtclArray)
 deallocate( cellArray)
 deallocate( cellPolar)
 deallocate( timePolar)
-deallocate( countArray)
 deallocate( timeCount)
 
 contains
@@ -176,19 +177,22 @@ contains
         integer,  intent(in)  :: prtclTotal, size
         real(b8), intent(in)  :: prtclArray(:,:)
         real(b8), intent(inout) :: concentration(:,:,:)
-        real(b8) :: dc, voxl
+        real(b8) :: dc, il, jl, kl, voxl
         integer  :: i, j, k, n
         concentration = 0.0_b8
         ! set length of voxels
-        voxl = minval(rsim(:,2)) / float(size)
+        il = rsim(1,2) / float(size)
+        jl = rsim(2,2) / float(size)
+        kl = rsim(3,2) / float(size)
+        voxl = il * jl * kl
         dc   = 1.0_b8
 
         do n = 1, prtclTotal
             if ( prtclArray(n,4) == 1.0_b8 ) then
-                i = floor( prtclArray(n,1) / voxl) + 1
-                j = floor( prtclArray(n,2) / voxl) + 1
-                k = floor( prtclArray(n,3) / voxl) + 1
-                concentration(i,j,k) = concentration(i,j,k) + dc
+                i = floor( prtclArray(n,1) / il) + 1
+                j = floor( prtclArray(n,2) / jl) + 1
+                k = floor( prtclArray(n,3) / kl) + 1
+                concentration(i,j,k) = concentration(i,j,k) + (dc / voxl)
             end if
         enddo
     end subroutine concentrationUpdate

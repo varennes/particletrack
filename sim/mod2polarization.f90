@@ -37,6 +37,9 @@ contains
                 do j = 1, 3
                     center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
                     q(j) = center(j) - clstrCOM(j)
+                    if ( abs(q(j)) < (10.0**(-15)) ) then
+                        q(j) = 0.0_b8
+                    end if
                 enddo
                 q = q / sqrt(dot_product(q,q))
                 ! calculate the concentration in cell i

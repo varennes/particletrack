@@ -9,7 +9,7 @@ integer,  parameter ::  runTotal = 1      ! total number of runs
 integer,  parameter :: cellTotal = 1      ! total number of cells in system
 real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
 integer,  parameter :: ntTotal    = 1      ! total number of timesteps
-integer,  parameter :: prtclTotal = 10000   ! total possible number of particles in system
+integer,  parameter :: prtclTotal = 20000   ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
@@ -153,9 +153,19 @@ contains
             cellArray(1,i,1) = center(1,i) - rCell
             cellArray(1,i,2) = center(1,i) + rCell
         enddo
+
         if ( cellTotal == 1 ) then
             return
+        elseif ( cellTotal == 2 ) then
+            center(2,1) = center(1,1) + (2.0 * rCell)
+            center(2,2:3) = center(1,2:3)
+            do i = 1, 3
+                cellArray(2,i,1) = center(2,i) - rCell
+                cellArray(2,i,2) = center(2,i) + rCell
+            enddo
+            return
         end if
+
         ! set center and cellArray for cells 2 to cellTotal
         n = 1
         i = 2
