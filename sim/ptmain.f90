@@ -64,7 +64,9 @@ write(*,*)
 call init_random_seed()
 
 cellArray(:,:,:) = 0.0_b8
-call itlCellCluster( cellTotal, cellArray, rsim)
+call readCellLocation( cellArray)
+! call itl2DCellCluster( cellTotal, cellArray, rsim)
+! call itlCellCluster( cellTotal, cellArray, rsim)
 edgeList = 0
 call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
@@ -73,11 +75,11 @@ do run = 1, runTotal
 
     timeCount(:)     = 0.0_b8
     cellPolar(:,:)   = 0.0_b8
+    timePolar(:,:)   = 0.0_b8
     ! cellArray(:,:,:) = 0.0_b8
     ! initialize cell position
     ! call itlClusterSys( cellTotal, cellArray, rsim)
     ! call itlCellCluster( cellTotal, cellArray, rsim)
-    ! call itl2DCellCluster( cellTotal, cellArray, rsim)
     ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     !!!  EC polarization  !!!
@@ -143,6 +145,8 @@ do run = 1, runTotal
     ! call wrtCellLocation( cellArray)
 
 enddo
+
+! call wrtCellLocation( cellArray)
 
 ! write concentration x projection
 ! do i = 1, size

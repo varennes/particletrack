@@ -226,7 +226,7 @@ contains
         center(:,:)      = 0.0_b8
         cellArray(:,:,:) = 0.0_b8
         ! set cell height
-        hCell = 0.10_b8
+        hCell = 0.075_b8
         ! set dr
         dr(:,:) = 0.0_b8
         dr(1,1) =  rCell * 2.0_b8
@@ -374,6 +374,24 @@ contains
     end subroutine initOneCell
 
 
+    ! read in cell locations from file and copy them to cellArry
+    subroutine readCellLocation( cellArray)
+        implicit none
+        real(b8), intent(out) :: cellArray(:,:,:)
+        integer  :: i, j, k
+        open( unit=11, file='cellLocation.dat', status="old", action="read")
+
+        cellArray = 0.0_b8
+        do i = 1, cellTotal
+            read( 11, *) j, k, cellArray(i,1,2), cellArray(i,1,1)
+            read( 11, *) j, k, cellArray(i,2,2), cellArray(i,2,1)
+            read( 11, *) j, k, cellArray(i,3,2), cellArray(i,3,1)
+            ! write(*,*) 'i', i, cellArray(i,:,:)
+        enddo
+        close(11)
+    end subroutine readCellLocation
+
+
     subroutine wrtCellLocation( cellArray)
         implicit none
         real(b8), intent(in) :: cellArray(:,:,:)
@@ -385,8 +403,8 @@ contains
                 center = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
                 write(210,'(I4)', advance='no') i
                 write(210,'(I4)', advance='no') j
-                write(210,'(F7.3)', advance='no') center
                 write(210,'(F7.3,F7.3)', advance='no') cellArray(i,j,2), cellArray(i,j,1)
+                write(210,'(F7.3)', advance='no') center
                 write(210,*) ''
             enddo
         enddo
