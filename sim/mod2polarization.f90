@@ -148,16 +148,16 @@ contains
 
 
     ! output time-averaged total cluster polarization to fort.200
-    subroutine wrtPlrTotal( run, cellPolar)
+    subroutine wrtPlrTotal( nGeo, run, cellPolar)
         implicit none
-        integer,  intent(in) :: run
+        integer,  intent(in) :: nGeo, run
         real(b8), intent(in), dimension(:,:) :: cellPolar
 
-        write(200,"(E16.8)", advance="no") cellPolar(1,1)
-        write(200,"(E17.8)", advance="no") cellPolar(1,2)
-        write(200,"(E17.8)", advance="no") cellPolar(1,3)
-        write(200,"(I7)", advance="no")    run
-        write(200,*) ''
+        write(12,"(E16.8)", advance="no") cellPolar(1,1)
+        write(12,"(E16.8)", advance="no") cellPolar(1,2)
+        write(12,"(E16.8)", advance="no") cellPolar(1,3)
+        write(12,"(I7)", advance="no")    run
+        write(12,*) ''
     end subroutine wrtPlrTotal
 
 end module

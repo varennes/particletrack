@@ -5,7 +5,8 @@ module sysconfig
 integer,  parameter :: b8 = selected_real_kind(14)
 
 !!!  SIMULATION PARAMETERS  [start] !!!
-integer,  parameter ::  runTotal = 1      ! total number of runs
+integer,  parameter ::  geoTotal = 2      ! total number of cluster geometries to iterate through
+integer,  parameter ::  runTotal = 3      ! total number of runs
 integer,  parameter :: cellTotal = 1      ! total number of cells in system
 real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
 integer,  parameter :: ntTotal    = 1      ! total number of timesteps

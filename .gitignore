@@ -4,6 +4,7 @@ data/*
 # output data
 *.dat
 fort.*
+*.200
 *.png
 
 # Compiled Object files
