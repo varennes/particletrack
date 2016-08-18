@@ -8,7 +8,7 @@ implicit none
 
 integer :: i, j, nGeo, nt, ntItl, run, size
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
-real(b8) :: r
+real(b8) :: p, q, r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
@@ -25,16 +25,15 @@ write(10,*) ' '
 close(10)
 
 ! initialize simulation space size
-do i = 1, 3
-    rsim(i,1) = 0.0_b8
-    rsim(i,2) = 1.0_b8
-end do
-! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 10.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 10.0_b8
+call getSysLengthScales( dr, rsim)
 ! set time-steps needed for sytem to reach equilibrium
-ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+ntItl = 2 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+! ntItl = 10
+do i = 1, 3
+    write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
+enddo
+write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
+write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -48,8 +47,8 @@ size = 10
 allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 
-
 call init_random_seed()
+call getProbabilities( p, q)
 
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
@@ -89,17 +88,17 @@ do nGeo = 1, geoTotal
 
         ! let system reach equilibrium
         do nt = 1, ntItl
-            call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+            call prtclUpdate( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray)
         enddo
 
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+            call prtclUpdate( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray)
 
             ! LONG TIME: count the particles within a cell
             call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)

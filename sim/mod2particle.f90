@@ -10,47 +10,61 @@ contains
 
     ! add flux of particles at top x-boundary
     ! gradient is assumed to be in the x-direction (1)
-    subroutine prtclFlux( N, dr, rsim, prtclArray)
+    subroutine prtclFlux( q, dr, rsim, prtclArray)
         implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
+        real(b8), intent(in)    :: q, dr(:), rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
         real(b8) :: r
-        integer  :: i, j, k
+        integer  :: j, k
         ! add flux to top boundary
-        do i = 1, nJ
-            j = 1
-            do while( prtclArray(j,4) == 1.0_b8 )
-                j = j + 1
-                if ( j > N ) then
-                    exit
-                end if
-            enddo
-            if ( j > N ) then
+        ! first check probability of event occuring
+        if ( q < 1.0 ) then
+            call random_number(r)
+            if ( q < r ) then
+                ! write(*,*) ' q =', q, 'r =', r, 'no particle addition'
+                return
+            end if
+        end if
+        ! write(*,*) ' q =', q, 'r =', r, 'particle addition'
+        j = 1
+        do while( prtclArray(j,4) == 1.0_b8 )
+            j = j + 1
+            if ( j > prtclTotal ) then
                 exit
             end if
-            prtclArray(j,4) = 1.0_b8
+        enddo
+        if ( j > prtclTotal ) then
+            return
+        end if
+        prtclArray(j,4) = 1.0_b8
+        call random_number(r)
+        prtclArray(j,1) = rsim(1,2) - r*dr(1)
+        do k = 2, 3
             call random_number(r)
-            prtclArray(j,1) = rsim(1,2) - r*dr(1)
-            do k = 2, 3
-                call random_number(r) ! cpm code used ran1() function
-                prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
-            enddo
+            prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
         enddo
     end subroutine prtclFlux
 
 
     ! move particles and check boundary conditions
     ! x-boundaries are absorbing
-    subroutine prtclUpdate( N, dr, rsim, prtclArray)
+    subroutine prtclUpdate( p, dr, rsim, prtclArray)
         implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
+        real(b8), intent(in)    :: p, dr(:), rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
         integer  :: i, j, dim
         real(b8) :: r
 
-        do i = 1, N
+        ! first check probability of event occuring
+        if ( p < 1.0 ) then
+            call random_number(r)
+            if ( p < r ) then
+                ! write(*,*) ' q =', q, 'r =', r, 'no particle addition'
+                return
+            end if
+        end if
+
+        do i = 1, prtclTotal
             ! check whether array index corresponds to a particle
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 ! move the particle by distance dr(j) in random direction
