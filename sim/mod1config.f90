@@ -217,26 +217,27 @@ contains
         real(b8), intent(in)  :: rsim(:,:)
         real(b8), allocatable :: dList(:)
         integer,  allocatable :: nnList(:,:), testList(:,:)
-        real(b8) :: a, hCell, nnd
+        real(b8) :: a, hCell, nnd, x0, y0
         integer :: center( cellTotal, 3)
         integer :: i, itest, inn, j, k, k1, k2, kmax, n, centerCheck
 
         allocate(    dList(200))
         allocate(   nnList(200,3))
         allocate( testList(400,2))
-        ! ! set cell height
-        ! hCell = 0.075_b8
-        ! ! set center and cellArray for cell 1
-        ! center(1,3)      = (rsim(3,2) - rsim(3,1)) / 2.0_b8
-        ! cellArray(1,3,1) = center(1,3) - hCell
-        ! cellArray(1,3,2) = center(1,3) + hCell
+        cellArray(:,:,:) = 0.0_b8
+        ! set cell height
+        hCell = 0.075_b8
+        ! set center and cellArray for cell 1
+        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hCell
+        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
+        x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
+        y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
         ! do i = 1, 2
         !     center(1,i)      = (rsim(i,2) - rsim(i,1)) / 2.0_b8
         !     cellArray(1,i,1) = center(1,i) - rCell
         !     cellArray(1,i,2) = center(1,i) + rCell
         ! enddo
 
-        cellArray(:,:,:) = 0.0_b8
         center(:,:) = 0
         write(*,*) center(1,1:2)
         if ( cellTotal == 1 ) then
@@ -278,23 +279,24 @@ contains
             nnd = minval( dList(1:inn))
             write(*,*) 'nnd =', nnd
             do i = 1, inn
-                if ( dList(i) == nnd ) then
+                if ( dList(i) == nnd .AND. n <= cellTotal) then
                     center(n,:) = nnList(i,:)
                     write(*,*) n, center(n,1:2)
                     n = n + 1
-                    if ( n > cellTotal ) then
-                        return
-                    end if
                 end if
             enddo
             kmax = kmax + 1
             ! n = cellTotal
         enddo
 
-        write(*,*) '  cell centers'
         do i = 1, cellTotal
-            write(*,*) i, center(i,1:2)
+            cellArray(i,1,1:2) = [ x0 + float(center(i,1)) - rCell, x0 + float(center(i,1)) + rCell]
+            cellArray(i,2,1:2) = [ y0 + float(center(i,2)) - rCell, y0 + float(center(i,2)) + rCell]
+            cellArray(i,3,1:2) = cellArray(1,3,1:2)
         enddo
+        if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
+            write(*,*) 'ERROR SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
+        end if
 
         deallocate(   nnList)
         deallocate( testList)

@@ -50,6 +50,7 @@ allocate(runCx(runTotal,size))
 
 
 call itl2DClusterNN( cellArray, rsim)
+call wrtCellLocation( cellArray)
 call init_random_seed()
 
 do nGeo = 1, geoTotal
