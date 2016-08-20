@@ -49,6 +49,7 @@ allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 
 
+call itl2DClusterNN( cellArray, rsim)
 call init_random_seed()
 
 do nGeo = 1, geoTotal

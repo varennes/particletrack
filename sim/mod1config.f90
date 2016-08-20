@@ -5,9 +5,9 @@ module sysconfig
 integer,  parameter :: b8 = selected_real_kind(14)
 
 !!!  SIMULATION PARAMETERS  [start] !!!
-integer,  parameter ::  geoTotal = 2      ! total number of cluster geometries to iterate through
-integer,  parameter ::  runTotal = 3      ! total number of runs
-integer,  parameter :: cellTotal = 1      ! total number of cells in system
+integer,  parameter ::  geoTotal = 0      ! total number of cluster geometries to iterate through
+integer,  parameter ::  runTotal = 1      ! total number of runs
+integer,  parameter :: cellTotal = 30      ! total number of cells in system
 real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
 integer,  parameter :: ntTotal    = 1      ! total number of timesteps
 integer,  parameter :: prtclTotal = 20000   ! total possible number of particles in system
@@ -210,13 +210,103 @@ contains
     end subroutine itlCellCluster
 
 
+    ! initialize 2D cluster of cells using nearest-neighbor (NN) method
+    subroutine itl2DClusterNN( cellArray, rsim)
+        implicit none
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8), intent(in)  :: rsim(:,:)
+        real(b8), allocatable :: dList(:)
+        integer,  allocatable :: nnList(:,:), testList(:,:)
+        real(b8) :: a, hCell, nnd
+        integer :: center( cellTotal, 3)
+        integer :: i, itest, inn, j, k, k1, k2, kmax, n, centerCheck
+
+        allocate(    dList(200))
+        allocate(   nnList(200,3))
+        allocate( testList(400,2))
+        ! ! set cell height
+        ! hCell = 0.075_b8
+        ! ! set center and cellArray for cell 1
+        ! center(1,3)      = (rsim(3,2) - rsim(3,1)) / 2.0_b8
+        ! cellArray(1,3,1) = center(1,3) - hCell
+        ! cellArray(1,3,2) = center(1,3) + hCell
+        ! do i = 1, 2
+        !     center(1,i)      = (rsim(i,2) - rsim(i,1)) / 2.0_b8
+        !     cellArray(1,i,1) = center(1,i) - rCell
+        !     cellArray(1,i,2) = center(1,i) + rCell
+        ! enddo
+
+        cellArray(:,:,:) = 0.0_b8
+        center(:,:) = 0
+        write(*,*) center(1,1:2)
+        if ( cellTotal == 1 ) then
+            return
+        end if
+        n = 2
+        kmax = 1
+        dList = 0.0_b8
+        nnList = 0
+        do while ( n <= cellTotal )
+            ! check for free NN sites
+            itest = 1
+            testList = 0
+            do k1 = kmax, -kmax, -1
+                do k2 = kmax, -kmax, -1
+                    testList(itest,1) = center(1,1) + k1
+                    testList(itest,2) = center(1,2) + k2
+                    itest = itest + 1
+                enddo
+            enddo
+            ! check testlist for candidate NN sites
+            k = 1
+            do i = 1, itest-1
+                centerCheck = 0
+                do j = 1, n-1
+                    if ( center(j,1) == testList(i,1) .AND. center(j,2) == testList(i,2) ) then
+                        centerCheck = 1
+                        exit
+                    end if
+                enddo
+                if ( centerCheck == 0 ) then
+                    nnList(k,:) = testList(i,:)
+                    dList(k)    = sqrt( float(testList(i,1)-center(1,1))**2 + float(testList(i,2)-center(1,2))**2 )
+                    k = k + 1
+                end if
+            enddo
+            ! find minimum nn distance from nnList
+            inn = k - 1
+            nnd = minval( dList(1:inn))
+            write(*,*) 'nnd =', nnd
+            do i = 1, inn
+                if ( dList(i) == nnd ) then
+                    center(n,:) = nnList(i,:)
+                    write(*,*) n, center(n,1:2)
+                    n = n + 1
+                    if ( n > cellTotal ) then
+                        return
+                    end if
+                end if
+            enddo
+            kmax = kmax + 1
+            ! n = cellTotal
+        enddo
+
+        write(*,*) '  cell centers'
+        do i = 1, cellTotal
+            write(*,*) i, center(i,1:2)
+        enddo
+
+        deallocate(   nnList)
+        deallocate( testList)
+    end subroutine itl2DClusterNN
+
+
     ! initialize positions of cells to form a 2D cluster
     subroutine itl2DCellCluster( cellTotal, cellArray, rsim)
         implicit none
         integer,  intent(in)  :: cellTotal
         real(b8), intent(out) :: cellArray(:,:,:)
         real(b8), intent(in)  :: rsim(:,:)
-        ! real(b8) :: rCell, test(3), center(cellTotal,3)
         real(b8) :: hCell, r
         real(b8), allocatable :: center(:,:), dr(:,:), test(:)
         integer :: cellCheck, i, ii, j, k, n
