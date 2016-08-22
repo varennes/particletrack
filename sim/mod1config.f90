@@ -232,11 +232,10 @@ contains
         cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
         x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
         y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
-        ! do i = 1, 2
-        !     center(1,i)      = (rsim(i,2) - rsim(i,1)) / 2.0_b8
-        !     cellArray(1,i,1) = center(1,i) - rCell
-        !     cellArray(1,i,2) = center(1,i) + rCell
-        ! enddo
+        do i = 1, 2
+            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
+            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
+        enddo
 
         center(:,:) = 0
         write(*,*) center(1,1:2)
@@ -286,12 +285,11 @@ contains
                 end if
             enddo
             kmax = kmax + 1
-            ! n = cellTotal
         enddo
 
-        do i = 1, cellTotal
-            cellArray(i,1,1:2) = [ x0 + float(center(i,1)) - rCell, x0 + float(center(i,1)) + rCell]
-            cellArray(i,2,1:2) = [ y0 + float(center(i,2)) - rCell, y0 + float(center(i,2)) + rCell]
+        do i = 2, cellTotal
+            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
+            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
             cellArray(i,3,1:2) = cellArray(1,3,1:2)
         enddo
         if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
