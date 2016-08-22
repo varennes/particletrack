@@ -7,7 +7,7 @@ integer,  parameter :: b8 = selected_real_kind(14)
 !!!  SIMULATION PARAMETERS  [start] !!!
 integer,  parameter ::  geoTotal = 0      ! total number of cluster geometries to iterate through
 integer,  parameter ::  runTotal = 1      ! total number of runs
-integer,  parameter :: cellTotal = 30      ! total number of cells in system
+integer,  parameter :: cellTotal = 10      ! total number of cells in system
 real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
 integer,  parameter :: ntTotal    = 1      ! total number of timesteps
 integer,  parameter :: prtclTotal = 20000   ! total possible number of particles in system
@@ -210,6 +210,130 @@ contains
     end subroutine itlCellCluster
 
 
+    ! initialize 3D cluster of cells using nearest-neighbor (NN) method
+    subroutine itl3DClusterNN( cellArray, rsim)
+        implicit none
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8), intent(in)  :: rsim(:,:)
+        real(b8), allocatable :: dList(:), dTest(:)
+        integer,  allocatable :: nnList(:,:), nnTest(:,:)
+        real(b8) :: a, nnd, x0, y0, z0
+        integer :: center( cellTotal, 3), test(3)
+        integer :: i, itest, inn, j, k, k1, k2, k3, kmax, n, centerCheck
+
+        allocate(  dList(400))
+        allocate(  dTest(400))
+        allocate( nnList(400,3))
+        allocate( nnTest(400,3))
+        cellArray(:,:,:) = 0.0_b8
+        ! set center and cellArray for cell 1
+        x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
+        y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
+        z0 = (rsim(3,2) - rsim(3,1)) / 2.0_b8
+        do i = 1, 3
+            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
+            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
+        enddo
+
+        center(:,:) = 0
+        ! write(*,*) center(1,1:3)
+        if ( cellTotal == 1 ) then
+            return
+        end if
+        n = 2
+        kmax = 1
+        dList = 0.0_b8
+        nnList = 0
+        do while ( n <= cellTotal )
+            ! check for free NN sites
+            ! write(*,*) '  kmax =', kmax
+            k = 1
+            test = 0
+            nnList = 0
+            dList  = 0.0_b8
+            do k1 = kmax, -kmax, -1
+                do k2 = kmax, -kmax, -1
+                    do k3 = kmax, -kmax, -1
+                        do j = 1, n-1
+                            centerCheck = 0
+                            test(1:3) = [center(1,1) + k1, center(1,2) + k2, center(1,3) + k3]
+                            if ( center(j,1) == test(1) .AND. center(j,2) == test(2) .AND. center(j,3) == test(3) ) then
+                                centerCheck = 1
+                                exit
+                            endif
+                        enddo
+                        if ( centerCheck == 0 ) then
+                            nnList(k,:) = test
+                            dList(k) = 0.0
+                            do j = 1, 3
+                                dList(k) = dList(k) + float(nnList(k,j)-center(1,j))**2
+                            enddo
+                            dList(k) = sqrt( dList(k) )
+                            k = k + 1
+                        endif
+                    enddo
+                enddo
+            enddo
+            inn = k - 1
+            ! write(*,*)
+            ! do i = 1, inn
+            !     write(*,*) i, nnList(i,:), dList(i)
+            ! enddo
+            ! write(*,*)
+            do while ( inn > 0 .AND. n <= cellTotal )
+                nnd = minval( dList(1:inn))
+                if ( nnd == maxval( dList(1:inn)) ) then
+                    exit
+                end if
+                ! write(*,*) 'nnd =', nnd, '  inn =', inn
+                 dTest =  dList
+                nnTest = nnList
+                do i = 1, inn
+                    if ( dList(i) == nnd .AND. n <= cellTotal) then
+                        center(n,1:3) = nnList(i,1:3)
+                        n = n + 1
+                        ! remove nnList and dList entries that have been added to center
+                         dTest(i)   = 0.0
+                        nnTest(i,:) = [ 0, 0, 0]
+                    end if
+                enddo
+                j = inn
+                do i = inn, 1, -1
+                    if ( dTest(i) == 0.0 ) then
+                        if ( i /= inn ) then
+                             dList(i:inn-1)   =  dList(i+1:inn)
+                            nnList(i:inn-1,:) = nnList(i+1:inn,:)
+                        end if
+                        j = j - 1
+                    end if
+                enddo
+                inn = j
+                ! write(*,*)
+                ! do i = 1, inn
+                !     write(*,*) i, nnList(i,:), dList(i)
+                ! enddo
+                ! write(*,*)
+            enddo
+            kmax = kmax + 1
+        enddo
+
+        do i = 2, cellTotal
+            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
+            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
+            cellArray(i,3,1:2) = [ z0 + (2.0*float(center(i,3))-1.0) * rCell, z0 + (2.0*float(center(i,3))+1.0) * rCell]
+        enddo
+        if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
+            write(*,*) '           INITIALIZATION ERROR             '
+            write(*,*) 'ERROR: SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
+        end if
+
+        deallocate( dList)
+        deallocate( dTest)
+        deallocate(nnList)
+        deallocate(nnTest)
+    end subroutine itl3DClusterNN
+
+
     ! initialize 2D cluster of cells using nearest-neighbor (NN) method
     subroutine itl2DClusterNN( cellArray, rsim)
         implicit none
@@ -296,6 +420,7 @@ contains
             write(*,*) 'ERROR SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
         end if
 
+        deallocate(    dList)
         deallocate(   nnList)
         deallocate( testList)
     end subroutine itl2DClusterNN

@@ -49,7 +49,7 @@ allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 
 
-call itl2DClusterNN( cellArray, rsim)
+call itl3DClusterNN( cellArray, rsim)
 call wrtCellLocation( cellArray)
 call init_random_seed()
 
