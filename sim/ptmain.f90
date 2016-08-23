@@ -8,7 +8,7 @@ implicit none
 
 integer :: i, j, nGeo, nt, ntItl, run, size
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
-real(b8) :: p, q, r
+real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
@@ -26,17 +26,16 @@ close(10)
 
 ! initialize simulation space size
 call getSysLengthScales( dr, rsim)
-call getProbabilities( p, q)
-! set time-steps needed for sytem to reach equilibrium
-ntItl = 10 * 6 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
-write(*,*) 'p =', p, 'q =', q
-write(*,*) 'lReal =', lReal, 'dReal =', dReal
-! ntItl = 10 * int( lReal**2 / (p * bReal)**2 )
-! ntItl = 10
+! set event probabilities and time-steps needed for sytem to reach equilibrium
+call getProbTimeScale( ntItl, dtReal, p, q)
 write(*,*) 'particle track'
+write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
+write(*,*) 'lReal =', lReal, 'dReal =', dReal
+write(*,*)
 do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
+write(*,*)
 write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
 

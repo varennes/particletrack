@@ -16,6 +16,9 @@ end module
 
 !!! PARAMETER DESCRIPTIONS !!!
 !
+!  All length parameters are in units of microns.
+!  All time parameters are in units of seconds.
+!
 !  aReal = cell radius
 !  bReal = particle jump distance
 !  lReal = system length in gradient direction
