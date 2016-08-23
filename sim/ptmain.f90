@@ -27,12 +27,12 @@ close(10)
 ! initialize simulation space size
 do i = 1, 3
     rsim(i,1) = 0.0_b8
-    rsim(i,2) = 1.0_b8
+    rsim(i,2) = 6.0_b8
 end do
 ! initialize particle movement step size
-dr(1) = (rsim(1,2) - rsim(1,1)) / 10.0_b8
-dr(2) = (rsim(2,2) - rsim(2,1)) / 10.0_b8
-dr(3) = (rsim(3,2) - rsim(3,1)) / 10.0_b8
+dr(1) = 0.20_b8
+dr(2) = 0.20_b8
+dr(3) = 0.20_b8
 ! set time-steps needed for sytem to reach equilibrium
 ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
 
@@ -49,8 +49,6 @@ allocate( concentration( size, size, size))
 allocate(runCx(runTotal,size))
 
 
-call itl3DClusterNN( cellArray, rsim)
-call wrtCellLocation( cellArray)
 call init_random_seed()
 
 do nGeo = 1, geoTotal
@@ -64,8 +62,7 @@ do nGeo = 1, geoTotal
     runCx = 0.0_b8
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
-    ! call itl2DCellCluster( cellTotal, cellArray, rsim)
-    call itlCellCluster( cellTotal, cellArray, rsim)
+    call itl2DClusterNN( cellArray, rsim)
     edgeList = 0
     call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 

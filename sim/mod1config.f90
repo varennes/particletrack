@@ -217,7 +217,7 @@ contains
         real(b8), intent(in)  :: rsim(:,:)
         real(b8), allocatable :: dList(:), dTest(:)
         integer,  allocatable :: nnList(:,:), nnTest(:,:)
-        real(b8) :: a, nnd, x0, y0, z0
+        real(b8) :: a, nnd, nndmax, x0, y0, z0
         integer :: center( cellTotal, 3), test(3)
         integer :: i, itest, inn, j, k, k1, k2, k3, kmax, n, centerCheck
 
@@ -234,7 +234,6 @@ contains
             cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
             cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
         enddo
-
         center(:,:) = 0
         ! write(*,*) center(1,1:3)
         if ( cellTotal == 1 ) then
@@ -275,6 +274,7 @@ contains
                 enddo
             enddo
             inn = k - 1
+            nndmax = float(ceiling(minval( dList(1:inn)) + 0.00001))
             ! write(*,*)
             ! do i = 1, inn
             !     write(*,*) i, nnList(i,:), dList(i)
@@ -282,7 +282,7 @@ contains
             ! write(*,*)
             do while ( inn > 0 .AND. n <= cellTotal )
                 nnd = minval( dList(1:inn))
-                if ( nnd == maxval( dList(1:inn)) ) then
+                if ( nnd == maxval( dList(1:inn)) .OR. nnd >= nndmax ) then
                     exit
                 end if
                 ! write(*,*) 'nnd =', nnd, '  inn =', inn
@@ -339,30 +339,29 @@ contains
         implicit none
         real(b8), intent(out) :: cellArray(:,:,:)
         real(b8), intent(in)  :: rsim(:,:)
-        real(b8), allocatable :: dList(:)
-        integer,  allocatable :: nnList(:,:), testList(:,:)
-        real(b8) :: a, hCell, nnd, x0, y0
-        integer :: center( cellTotal, 3)
+        real(b8), allocatable :: dList(:), dTest(:)
+        integer,  allocatable :: nnList(:,:)
+        real(b8) :: a, hCell, nnd, nndmax, x0, y0
+        integer :: center( cellTotal, 3), test(2)
         integer :: i, itest, inn, j, k, k1, k2, kmax, n, centerCheck
 
-        allocate(    dList(200))
-        allocate(   nnList(200,3))
-        allocate( testList(400,2))
+        allocate(  dList(200))
+        allocate(  dTest(200))
+        allocate( nnList(200,3))
         cellArray(:,:,:) = 0.0_b8
         ! set cell height
-        hCell = 0.075_b8
+        hCell = 0.10_b8
         ! set center and cellArray for cell 1
-        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hCell
-        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
         x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
         y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
+        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hCell
+        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
         do i = 1, 2
             cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
             cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
         enddo
-
         center(:,:) = 0
-        write(*,*) center(1,1:2)
+        ! write(*,*) center(1,1:2)
         if ( cellTotal == 1 ) then
             return
         end if
@@ -372,41 +371,56 @@ contains
         nnList = 0
         do while ( n <= cellTotal )
             ! check for free NN sites
-            itest = 1
-            testList = 0
+            ! write(*,*) '  kmax =', kmax
+            k = 1
+            test = 0
+            nnList = 0
+            dList  = 0.0_b8
             do k1 = kmax, -kmax, -1
                 do k2 = kmax, -kmax, -1
-                    testList(itest,1) = center(1,1) + k1
-                    testList(itest,2) = center(1,2) + k2
-                    itest = itest + 1
-                enddo
-            enddo
-            ! check testlist for candidate NN sites
-            k = 1
-            do i = 1, itest-1
-                centerCheck = 0
-                do j = 1, n-1
-                    if ( center(j,1) == testList(i,1) .AND. center(j,2) == testList(i,2) ) then
-                        centerCheck = 1
-                        exit
+                    do j = 1, n-1
+                        centerCheck = 0
+                        test = [center(1,1) + k1, center(1,2) + k2]
+                        if ( center(j,1) == test(1) .AND. center(j,2) == test(2) ) then
+                            centerCheck = 1
+                            exit
+                        end if
+                    enddo
+                    if ( centerCheck == 0 ) then
+                        nnList(k,:) = test
+                        dList(k) = sqrt( float(nnList(k,1)-center(1,1))**2 + float(nnList(k,2)-center(1,2))**2)
+                        k = k + 1
                     end if
                 enddo
-                if ( centerCheck == 0 ) then
-                    nnList(k,:) = testList(i,:)
-                    dList(k)    = sqrt( float(testList(i,1)-center(1,1))**2 + float(testList(i,2)-center(1,2))**2 )
-                    k = k + 1
-                end if
             enddo
-            ! find minimum nn distance from nnList
             inn = k - 1
-            nnd = minval( dList(1:inn))
-            write(*,*) 'nnd =', nnd
-            do i = 1, inn
-                if ( dList(i) == nnd .AND. n <= cellTotal) then
-                    center(n,:) = nnList(i,:)
-                    write(*,*) n, center(n,1:2)
-                    n = n + 1
+            nndmax = float(ceiling(minval( dList(1:inn)) + 0.00001))
+            do while ( inn > 0 .AND. n <= cellTotal )
+                nnd = minval( dList(1:inn))
+                if ( nnd == maxval( dList(1:inn)) .OR. nnd >= nndmax ) then
+                    exit
                 end if
+                ! write(*,*) 'nnd =', nnd, '  inn =', inn
+                dTest =  dList
+                do i = 1, inn
+                    if ( dList(i) == nnd .AND. n <= cellTotal) then
+                        center(n,:) = nnList(i,:)
+                        n = n + 1
+                        ! remove nnList and dList entries that have been added to center
+                        dTest(i)   = 0.0
+                    end if
+                enddo
+                j = inn
+                do i = inn, 1, -1
+                    if ( dTest(i) == 0.0 ) then
+                        if ( i /= inn ) then
+                             dList(i:inn-1)   =  dList(i+1:inn)
+                            nnList(i:inn-1,:) = nnList(i+1:inn,:)
+                        end if
+                        j = j - 1
+                    end if
+                enddo
+                inn = j
             enddo
             kmax = kmax + 1
         enddo
@@ -417,12 +431,13 @@ contains
             cellArray(i,3,1:2) = cellArray(1,3,1:2)
         enddo
         if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
-            write(*,*) 'ERROR SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
+            write(*,*) '           INITIALIZATION ERROR             '
+            write(*,*) 'ERROR: SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
         end if
 
-        deallocate(    dList)
-        deallocate(   nnList)
-        deallocate( testList)
+        deallocate(  dList)
+        deallocate(  dTest)
+        deallocate( nnList)
     end subroutine itl2DClusterNN
 
 
