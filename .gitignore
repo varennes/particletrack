@@ -1,6 +1,9 @@
 # directories
 data/*
 
+# python test files
+sim/*.py
+
 # output data
 *.dat
 fort.*
