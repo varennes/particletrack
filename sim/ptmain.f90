@@ -6,9 +6,9 @@ use polarization
 
 implicit none
 
-integer :: i, j, nGeo, nt, ntItl, run, size
+integer :: i, j, nGeo, nt, ntItl, run, cSize(3)
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
-real(b8) :: r
+real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
 
@@ -25,16 +25,19 @@ write(10,*) ' '
 close(10)
 
 ! initialize simulation space size
+call getSysLengthScales( dr, rsim)
+! set event probabilities and time-steps needed for sytem to reach equilibrium
+call getProbTimeScale( ntItl, dtReal, p, q)
+write(*,*) 'particle track'
+write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
+write(*,*) 'lReal =', lReal, 'dReal =', dReal
+write(*,*)
 do i = 1, 3
-    rsim(i,1) = 0.0_b8
-    rsim(i,2) = 6.0_b8
-end do
-! initialize particle movement step size
-dr(1) = 0.20_b8
-dr(2) = 0.20_b8
-dr(3) = 0.20_b8
-! set time-steps needed for sytem to reach equilibrium
-ntItl = 10 * int( (rsim(1,2)-rsim(1,1))**2 / dr(1)**2 )
+    write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
+enddo
+write(*,*)
+write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
+write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -44,10 +47,13 @@ allocate( timePolar( 3, ntTotal))
 allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 ! initialize concentration array
-size = 10
-allocate( concentration( size, size, size))
-allocate(runCx(runTotal,size))
-
+write(*,*) '  cSize:'
+do i = 1, 3
+    cSize(i) = ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
+    write(*,*) '  ', cSize(i)
+enddo
+allocate( concentration( cSize(1), cSize(2), cSize(3)))
+allocate( runCx(runTotal,cSize(1)))
 
 call init_random_seed()
 
@@ -83,61 +89,57 @@ do nGeo = 1, geoTotal
                 prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
             enddo
         enddo
-        ! call wrtPrtclLocation( prtclTotal, nt, prtclArray)
-        ! call concentrationUpdate( prtclTotal, prtclArray, concentration)
 
         ! let system reach equilibrium
         do nt = 1, ntItl
-            call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+            call prtclUpdate( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray)
         enddo
 
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( prtclTotal, dr, rsim, prtclArray)
+            call prtclUpdate( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( prtclTotal, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray)
 
             ! LONG TIME: count the particles within a cell
-            call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+            ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-            do j = 1, 3
-                timePolar(j,nt) = sum(cellPolar(:,j))
-            enddo
+            ! do j = 1, 3
+            !     timePolar(j,nt) = sum(cellPolar(:,j))
+            ! enddo
         enddo
-        ! output particle locations
-        ! call wrtPrtclLocation( prtclTotal, run, prtclArray)
-        ! call concentrationUpdate( prtclTotal, prtclArray, size, concentration)
-        ! ! call concentrationXprj( size, concentration, runCx(run,:))
+        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        call concentrationXprj( cSize(1), concentration, runCx(run,:))
         ! do i = 1, size
         !     runCx(run,i) = concentration( i, 2, 3)
         ! enddo
 
         ! calculate and output time averaged molecule count
-        do j = 1, 3
-            cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
-        enddo
-        call wrtPlrTotal( nGeo, run, cellPolar)
+        ! do j = 1, 3
+        !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
+        ! enddo
+        ! call wrtPlrTotal( nGeo, run, cellPolar)
         ! call wrtCellLocation( cellArray)
     enddo
 
     ! call wrtCellLocation( cellArray)
 
     ! write concentration x projection
-    ! do i = 1, size
-    !     avg = sum(runCx(:,i)) / float(runTotal)
-    !     var = 0.0_b8
-    !     do j = 1, runTotal
-    !         var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
-    !     enddo
-    !     write(300,"(E16.8)", advance="no") avg
-    !     write(300,"(E16.8)", advance="no") var
-    !     write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - (minval(rsim(:,2)) / float(size) / 2.0_b8)
-    !     write(300,*) ''
-    ! enddo
+    do i = 1, cSize(1)
+        avg = sum(runCx(:,i)) / float(runTotal)
+        var = 0.0_b8
+        do j = 1, runTotal
+            var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
+        enddo
+        write(300,"(E16.8)", advance="no") avg
+        write(300,"(E16.8)", advance="no") var
+        write(300,"(E12.4)", advance="no") float(i)*minval(rsim(:,2))/float(cSize(1))-(minval(rsim(:,2))/float(cSize(1))/2.0_b8)
+        write(300,*) ''
+    enddo
     !
     ! do i = 1, size
     !     do j = 1, runTotal
@@ -150,7 +152,6 @@ enddo
 
 ! write out simulation information / parameters
 write(*,*)
-write(*,*)
 write(*,*) ' geo Total =', geoTotal
 write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
@@ -161,6 +162,11 @@ do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
 write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
+write(*,*)
+write(*,*) 'Length and Time Conversions:'
+write(*,*) '  1 sim.   length =', rReal / rCell, 'microns'
+write(*,*) '  1 sim. timestep =', dtReal, 'seconds'
+
 
 deallocate( prtclArray)
 deallocate( cellArray)
@@ -170,18 +176,19 @@ deallocate( timeCount)
 
 contains
 
-    subroutine concentrationUpdate( prtclTotal, prtclArray, size, concentration)
+    subroutine concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
         implicit none
-        integer,  intent(in)  :: prtclTotal, size
+        integer,  intent(in)  :: prtclTotal, cSize(3)
         real(b8), intent(in)  :: prtclArray(:,:)
         real(b8), intent(inout) :: concentration(:,:,:)
         real(b8) :: dc, il, jl, kl, voxl
         integer  :: i, j, k, n
         concentration = 0.0_b8
         ! set length of voxels
-        il = rsim(1,2) / float(size)
-        jl = rsim(2,2) / float(size)
-        kl = rsim(3,2) / float(size)
+        il = rsim(1,2) / float(cSize(1))
+        jl = rsim(2,2) / float(cSize(2))
+        kl = rsim(3,2) / float(cSize(3))
+        ! write(*,*) 'voxel dimensions', il, jl, kl
         voxl = il * jl * kl
         dc   = 1.0_b8
 
@@ -197,23 +204,23 @@ contains
 
 
     ! calculate x projection of concentration by averaging over y, z dimensions
-    subroutine concentrationXprj( size, concentration, xConcentration)
+    subroutine concentrationXprj( cSize, concentration, xConcentration)
         implicit none
-        integer, intent(in)   :: size
+        integer, intent(in)   :: cSize(3)
         real(b8), intent(in)  :: concentration(:,:,:)
         real(b8), intent(out) :: xConcentration(:)
-        real(b8) :: mC(size,size)
+        real(b8) :: mC(cSize(1),cSize(2))
         integer :: i, j ,k
         mC = 0.0_b8
         ! average over z dimension
-        do i = 1, size
-            do j = 1, size
-                mC(i,j) = sum(concentration(i,j,:)) / float(size)
+        do i = 1, cSize(1)
+            do j = 1, cSize(2)
+                mC(i,j) = sum(concentration(i,j,:)) / float(cSize(3))
             enddo
         enddo
         ! average over y dimension
-        do i = 1, size
-            xConcentration(i) = sum(mC(i,:)) / float(size)
+        do i = 1, cSize(1)
+            xConcentration(i) = sum(mC(i,:)) / float(cSize(2))
         enddo
     end subroutine concentrationXprj
 

@@ -1,19 +1,48 @@
 module sysconfig
 ! module for config of cell cluster
-
-! b8 will be used to define reals with 14 digits
-integer,  parameter :: b8 = selected_real_kind(14)
+use parameters
 
 !!!  SIMULATION PARAMETERS  [start] !!!
-integer,  parameter ::  geoTotal = 0      ! total number of cluster geometries to iterate through
-integer,  parameter ::  runTotal = 1      ! total number of runs
-integer,  parameter :: cellTotal = 10      ! total number of cells in system
+integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
+integer,  parameter ::   runTotal = 10     ! total number of runs
+integer,  parameter ::  cellTotal = 1      ! total number of cells in system
+integer,  parameter ::    ntTotal = 1      ! total number of timesteps
+integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
+
 real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
-integer,  parameter :: ntTotal    = 1      ! total number of timesteps
-integer,  parameter :: prtclTotal = 20000   ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
+
+    subroutine getProbTimeScale( ntItl, dtReal, p, q)
+        implicit none
+        real(b8), intent(out) :: dtReal, p, q
+        integer,  intent(out) :: ntItl
+        ! calculate time step in real units
+        dtReal = min( bReal*bReal / dReal, 1.0_b8 / kReal)
+        ! calculate probailities of diffusion and production events
+        p = dReal * dtReal / bReal**2
+        q = kReal * dtReal
+        ! calculate the number of timesteps needed for equilibration
+        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
+        ! write(*,*) 'dtReal =', dtReal
+        ! write(*,*) ' diffusion: p =', p
+        ! write(*,*) 'production: q =', q
+    end subroutine getProbTimeScale
+
+
+    subroutine getSysLengthScales( dr, rsim)
+        implicit none
+        real(b8) , intent(out) :: dr(3), rsim(3,2)
+
+        rsim(:,1) = 0.0_b8
+        rsim(1,2) =  lReal * rCell / rReal
+        rsim(2,2) = syReal * rCell / rReal
+        rsim(3,2) = szReal * rCell / rReal
+
+        dr(:) = bReal * rCell / rReal
+    end subroutine getSysLengthScales
+
 
     ! initialize cell positions to form a cluster
     ! set rsim space such that the cluster is located at the center
