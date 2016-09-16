@@ -6,7 +6,7 @@ use polarization
 
 implicit none
 
-integer :: i, j, nGeo, nt, ntItl, run, size
+integer :: i, j, nGeo, nt, ntItl, run, cSize(3)
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
@@ -47,9 +47,13 @@ allocate( timePolar( 3, ntTotal))
 allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 ! initialize concentration array
-size = 10
-allocate( concentration( size, size, size))
-allocate(runCx(runTotal,size))
+write(*,*) '  cSize:'
+do i = 1, 3
+    cSize(i) = ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
+    write(*,*) '  ', cSize(i)
+enddo
+allocate( concentration( cSize(1), cSize(2), cSize(3)))
+allocate( runCx(runTotal,cSize(1)))
 
 call init_random_seed()
 
@@ -109,11 +113,11 @@ do nGeo = 1, geoTotal
             !     timePolar(j,nt) = sum(cellPolar(:,j))
             ! enddo
         enddo
-        call concentrationUpdate( prtclTotal, prtclArray, size, concentration)
-        ! ! call concentrationXprj( size, concentration, runCx(run,:))
-        do i = 1, size
-            runCx(run,i) = concentration( i, 2, 3)
-        enddo
+        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        ! do i = 1, size
+        !     runCx(run,i) = concentration( i, 2, 3)
+        ! enddo
 
         ! calculate and output time averaged molecule count
         ! do j = 1, 3
@@ -126,7 +130,7 @@ do nGeo = 1, geoTotal
     ! call wrtCellLocation( cellArray)
 
     ! write concentration x projection
-    do i = 1, size
+    do i = 1, cSize(1)
         avg = sum(runCx(:,i)) / float(runTotal)
         var = 0.0_b8
         do j = 1, runTotal
@@ -134,7 +138,7 @@ do nGeo = 1, geoTotal
         enddo
         write(300,"(E16.8)", advance="no") avg
         write(300,"(E16.8)", advance="no") var
-        write(300,"(E12.4)", advance="no") float(i) * minval(rsim(:,2)) / float(size) - (minval(rsim(:,2)) / float(size) / 2.0_b8)
+        write(300,"(E12.4)", advance="no") float(i)*minval(rsim(:,2))/float(cSize(1))-(minval(rsim(:,2))/float(cSize(1))/2.0_b8)
         write(300,*) ''
     enddo
     !
@@ -161,8 +165,8 @@ enddo
 write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
 write(*,*) 'Length and Time Conversions:'
-write(*,*) '  1 sim.   length =', aReal / rCell, 'microns'
-write(*,*) '  1 sim. timestep =', min( bReal*bReal / dReal, 1.0_b8 / kReal), 'seconds'
+write(*,*) '  1 sim.   length =', rReal / rCell, 'microns'
+write(*,*) '  1 sim. timestep =', dtReal, 'seconds'
 
 
 deallocate( prtclArray)
@@ -173,18 +177,18 @@ deallocate( timeCount)
 
 contains
 
-    subroutine concentrationUpdate( prtclTotal, prtclArray, size, concentration)
+    subroutine concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
         implicit none
-        integer,  intent(in)  :: prtclTotal, size
+        integer,  intent(in)  :: prtclTotal, cSize(3)
         real(b8), intent(in)  :: prtclArray(:,:)
         real(b8), intent(inout) :: concentration(:,:,:)
         real(b8) :: dc, il, jl, kl, voxl
         integer  :: i, j, k, n
         concentration = 0.0_b8
         ! set length of voxels
-        il = rsim(1,2) / float(size)
-        jl = rsim(2,2) / float(size)
-        kl = rsim(3,2) / float(size)
+        il = rsim(1,2) / float(cSize(1))
+        jl = rsim(2,2) / float(cSize(2))
+        kl = rsim(3,2) / float(cSize(3))
         ! write(*,*) 'voxel dimensions', il, jl, kl
         voxl = il * jl * kl
         dc   = 1.0_b8
@@ -201,23 +205,23 @@ contains
 
 
     ! calculate x projection of concentration by averaging over y, z dimensions
-    subroutine concentrationXprj( size, concentration, xConcentration)
+    subroutine concentrationXprj( cSize, concentration, xConcentration)
         implicit none
-        integer, intent(in)   :: size
+        integer, intent(in)   :: cSize(3)
         real(b8), intent(in)  :: concentration(:,:,:)
         real(b8), intent(out) :: xConcentration(:)
-        real(b8) :: mC(size,size)
+        real(b8) :: mC(cSize(1),cSize(2))
         integer :: i, j ,k
         mC = 0.0_b8
         ! average over z dimension
-        do i = 1, size
-            do j = 1, size
-                mC(i,j) = sum(concentration(i,j,:)) / float(size)
+        do i = 1, cSize(1)
+            do j = 1, cSize(2)
+                mC(i,j) = sum(concentration(i,j,:)) / float(cSize(3))
             enddo
         enddo
         ! average over y dimension
-        do i = 1, size
-            xConcentration(i) = sum(mC(i,:)) / float(size)
+        do i = 1, cSize(1)
+            xConcentration(i) = sum(mC(i,:)) / float(cSize(2))
         enddo
     end subroutine concentrationXprj
 

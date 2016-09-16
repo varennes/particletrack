@@ -4,7 +4,7 @@ use parameters
 
 !!!  SIMULATION PARAMETERS  [start] !!!
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
-integer,  parameter ::   runTotal = 30      ! total number of runs
+integer,  parameter ::   runTotal = 10     ! total number of runs
 integer,  parameter ::  cellTotal = 1      ! total number of cells in system
 integer,  parameter ::    ntTotal = 1      ! total number of timesteps
 integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
@@ -24,7 +24,7 @@ contains
         p = dReal * dtReal / bReal**2
         q = kReal * dtReal
         ! calculate the number of timesteps needed for equilibration
-        ntItl = 5 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
+        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
         ! write(*,*) 'dtReal =', dtReal
         ! write(*,*) ' diffusion: p =', p
         ! write(*,*) 'production: q =', q
@@ -36,11 +36,11 @@ contains
         real(b8) , intent(out) :: dr(3), rsim(3,2)
 
         rsim(:,1) = 0.0_b8
-        rsim(1,2) =  lReal * rCell / aReal
-        rsim(2,2) = syReal * rCell / aReal
-        rsim(3,2) = szReal * rCell / aReal
+        rsim(1,2) =  lReal * rCell / rReal
+        rsim(2,2) = syReal * rCell / rReal
+        rsim(3,2) = szReal * rCell / rReal
 
-        dr(:) = bReal * rCell / aReal
+        dr(:) = bReal * rCell / rReal
     end subroutine getSysLengthScales
 
 
