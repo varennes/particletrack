@@ -68,7 +68,8 @@ do nGeo = 1, geoTotal
     runCx = 0.0_b8
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
-    call itl2DClusterNN( cellArray, rsim)
+    call itlCellCluster( cellTotal, cellArray, rsim)
+    ! call itl2DClusterNN( cellArray, rsim)
     edgeList = 0
     call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
@@ -129,24 +130,7 @@ do nGeo = 1, geoTotal
     ! call wrtCellLocation( cellArray)
 
     ! write concentration x projection
-    do i = 1, cSize(1)
-        avg = sum(runCx(:,i)) / float(runTotal)
-        var = 0.0_b8
-        do j = 1, runTotal
-            var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
-        enddo
-        write(300,"(E16.8)", advance="no") avg
-        write(300,"(E16.8)", advance="no") var
-        write(300,"(E12.4)", advance="no") float(i)*minval(rsim(:,2))/float(cSize(1))-(minval(rsim(:,2))/float(cSize(1))/2.0_b8)
-        write(300,*) ''
-    enddo
-    !
-    ! do i = 1, size
-    !     do j = 1, runTotal
-    !         write(310,'(E17.8)', advance='no') runCx(j,i)
-    !     enddo
-    !     write(310,*) ''
-    ! enddo
+    call wrtConcentrationX( cSize, runCx, rsim)
     close(12)
 enddo
 
@@ -223,6 +207,27 @@ contains
             xConcentration(i) = sum(mC(i,:)) / float(cSize(2))
         enddo
     end subroutine concentrationXprj
+
+
+    ! write concentration x projection
+    subroutine wrtConcentrationX( cSize, runCx, rsim)
+        implicit none
+        integer,  intent(in) :: cSize(3)
+        real(b8), intent(in) :: runCx(:,:), rsim(3,2)
+        integer  :: i
+        real(b8) :: avg, var
+        do i = 1, cSize(1)
+            avg = sum(runCx(:,i)) / float(runTotal)
+            var = 0.0_b8
+            do j = 1, runTotal
+                var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
+            enddo
+            write(300,"(E16.8)", advance="no") avg
+            write(300,"(E16.8)", advance="no") var
+            write(300,"(E12.4)", advance="no") float(i)*minval(rsim(:,2))/float(cSize(1))-(minval(rsim(:,2))/float(cSize(1))/2.0_b8)
+            write(300,*) ''
+        enddo
+    end subroutine wrtConcentrationX
 
 
     ! count the number of particels within cells volume
