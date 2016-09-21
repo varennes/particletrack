@@ -16,20 +16,20 @@ contains
         real(b8), intent(inout) :: prtclArray(:,:)
         real(b8) :: r
         integer  :: j, k
-        ! add flux to top boundary
+        ! add flux to top x boundary
         ! first check probability of event occuring
         if ( q < 1.0 ) then
             call random_number(r)
             if ( q < r ) then
-                ! write(*,*) ' q =', q, 'r =', r, 'no particle addition'
                 return
             end if
         end if
-        ! write(*,*) ' q =', q, 'r =', r, 'particle addition'
         j = 1
         do while( prtclArray(j,4) == 1.0_b8 )
             j = j + 1
             if ( j > prtclTotal ) then
+                write(*,*) 'FLUX UPDATE: hit max number of particles'
+                write(*,*) '             consider increasing "prtclTotal"'
                 exit
             end if
         enddo
@@ -55,36 +55,28 @@ contains
         integer  :: i, j, dim
         real(b8) :: r
 
-        ! first check probability of event occuring
-        if ( p < 1.0 ) then
-            call random_number(r)
-            if ( p < r ) then
-                ! write(*,*) ' q =', q, 'r =', r, 'no particle addition'
-                return
-            end if
-        end if
-
         do i = 1, prtclTotal
             ! check whether array index corresponds to a particle
             if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! check probability of event occuring
                 ! move the particle by distance dr(j) in random direction
                 call random_number(r)
-                if ( r < (1.0_b8/6.0_b8) ) then
+                if ( r < (p*1.0_b8/6.0_b8) ) then
                     dim = 1
                     prtclArray(i,1) = prtclArray(i,1) - dr(1)
-                elseif( r < (2.0_b8/6.0_b8) )then
+                elseif( r < (p*2.0_b8/6.0_b8) )then
                     dim = 1
                     prtclArray(i,1) = prtclArray(i,1) + dr(1)
-                elseif( r < (3.0_b8/6.0_b8) )then
+                elseif( r < (p*3.0_b8/6.0_b8) )then
                     dim = 2
                     prtclArray(i,2) = prtclArray(i,2) - dr(2)
-                elseif( r < (4.0_b8/6.0_b8) )then
+                elseif( r < (p*4.0_b8/6.0_b8) )then
                     dim = 2
                     prtclArray(i,2) = prtclArray(i,2) + dr(2)
-                elseif( r < (5.0_b8/6.0_b8) )then
+                elseif( r < (p*5.0_b8/6.0_b8) )then
                     dim = 3
                     prtclArray(i,3) = prtclArray(i,3) - dr(3)
-                else
+                elseif( r <= p )then
                     dim = 3
                     prtclArray(i,3) = prtclArray(i,3) + dr(1)
                 endif
@@ -103,10 +95,12 @@ contains
                             exit
                         endif
                     enddo
-                else
-                    ! absorbing boundary parallel to gradient
-                    if( (prtclArray(i,dim)<rsim(dim,1)) .OR. (prtclArray(i,dim)>rsim(dim,2)) )then
+                elseif( dim == 1 )then
+                    ! absorbing boundary at x = 0, reflective at x = rsim(1,2)
+                    if( prtclArray(i,dim) < rsim(dim,1) )then
                         prtclArray(i,4) = 0.0_b8
+                    elseif( prtclArray(i,dim) > rsim(dim,2) )then
+                        prtclArray(i,dim) = rsim(dim,2) - (prtclArray(i,dim) - rsim(dim,2))
                     endif
                 endif
             endif

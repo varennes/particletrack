@@ -81,15 +81,7 @@ do nGeo = 1, geoTotal
         timePolar(:,:)   = 0.0_b8
 
         ! initialize particle positions
-        nt = 1
         prtclArray(:,:) = 0.0_b8
-        do i = 1, (prtclTotal/10)
-            prtclArray(i,4) = 1.0_b8
-            do j = 1, 3
-                call random_number(r) ! in cpm code use ran1() function
-                prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
-            enddo
-        enddo
 
         ! let system reach equilibrium
         do nt = 1, ntItl
@@ -150,6 +142,11 @@ write(*,*)
 write(*,*) 'Length and Time Conversions:'
 write(*,*) '  1 sim.   length =', rReal / rCell, 'microns'
 write(*,*) '  1 sim. timestep =', dtReal, 'seconds'
+write(*,*)
+write(*,*) 'Average gradient:'
+write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
+write(*,*) kReal / (dReal * syReal * szReal) * (rReal / rCell)**4.0, '/(sim. length)^4'
+write(*,*)
 
 
 deallocate( prtclArray)

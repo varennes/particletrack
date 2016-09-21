@@ -9,7 +9,7 @@ integer,  parameter ::  cellTotal = 1      ! total number of cells in system
 integer,  parameter ::    ntTotal = 1      ! total number of timesteps
 integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
 
-real(b8), parameter :: rCell = 0.20_b8     ! radius of the cell
+real(b8), parameter :: rCell = 5.0_b8      ! radius of the cell
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
