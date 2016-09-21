@@ -345,8 +345,8 @@ contains
             enddo
             kmax = kmax + 1
         enddo
-
-        do i = 2, cellTotal
+        itest = cellTotal
+        do i = 2, itest
             cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
             cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
             cellArray(i,3,1:2) = [ z0 + (2.0*float(center(i,3))-1.0) * rCell, z0 + (2.0*float(center(i,3))+1.0) * rCell]
@@ -453,8 +453,8 @@ contains
             enddo
             kmax = kmax + 1
         enddo
-
-        do i = 2, cellTotal
+        itest = cellTotal
+        do i = 2, itest
             cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
             cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
             cellArray(i,3,1:2) = cellArray(1,3,1:2)

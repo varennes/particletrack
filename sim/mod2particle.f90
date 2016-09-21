@@ -3,9 +3,6 @@ module particle
 
 use sysconfig
 
-! number of particles added to simulation space
-integer,  parameter :: nJ = 10
-
 contains
 
     ! add flux of particles at top x-boundary
@@ -43,11 +40,18 @@ contains
             call random_number(r)
             prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
         enddo
+        do k = 1, 3
+            if ( prtclArray(j,k) == rsim(k,1) .OR. prtclArray(j,k) == rsim(k,2) ) then
+                write(*,*) 'FLUX: particle', j, 'on boundary', prtclArray(j,1:3)
+            end if
+        enddo
+
     end subroutine prtclFlux
 
 
     ! move particles and check boundary conditions
-    ! x-boundaries are absorbing
+    ! x=rsim(1,1) boundary absorbing; x=rsim(1,2) boundary reflective
+    ! all other boundaries periodic
     subroutine prtclUpdate( p, dr, rsim, prtclArray)
         implicit none
         real(b8), intent(in)    :: p, dr(:), rsim(:,:)
@@ -58,8 +62,7 @@ contains
         do i = 1, prtclTotal
             ! check whether array index corresponds to a particle
             if ( prtclArray(i,4) == 1.0_b8 ) then
-                ! check probability of event occuring
-                ! move the particle by distance dr(j) in random direction
+                ! with probability 'p', move a distance dr(j) in random direction
                 call random_number(r)
                 if ( r < (p*1.0_b8/6.0_b8) ) then
                     dim = 1
@@ -78,7 +81,7 @@ contains
                     prtclArray(i,3) = prtclArray(i,3) - dr(3)
                 elseif( r <= p )then
                     dim = 3
-                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
+                    prtclArray(i,3) = prtclArray(i,3) + dr(3)
                 endif
 
                 ! check boundary conditions
@@ -109,42 +112,102 @@ contains
 
 
     ! move particles and check boundary conditions
-    ! all boundaries are periodic
-    subroutine prtclUpdateAllPeriodic( N, dr, rsim, prtclArray)
+    ! x=rsim(1,1) boundary absorbing; x=rsim(1,2) boundary reflective
+    ! all other boundaries reflective
+    subroutine prtclUpdateReflect( p, dr, rsim, prtclArray)
         implicit none
-        integer,  intent(in)    :: N
-        real(b8), intent(in)    :: dr(:), rsim(:,:)
+        real(b8), intent(in)    :: p, dr(:), rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
-        integer  :: i, j
+        integer  :: i, j, dim
         real(b8) :: r
 
-        do i = 1, N
+        do i = 1, prtclTotal
+            ! check whether array index corresponds to a particle
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! with probability 'p', move a distance dr(j) in random direction
+                call random_number(r)
+                if ( r < (p*1.0_b8/6.0_b8) ) then
+                    prtclArray(i,1) = prtclArray(i,1) - dr(1)
+                    ! check for absorbing boundary
+                    if ( prtclArray(i,1) <= rsim(1,1) ) then
+                        prtclArray(i,4) = 0.0_b8
+                    end if
+                elseif( r < (p*2.0_b8/6.0_b8) )then
+                    prtclArray(i,1) = prtclArray(i,1) + dr(1)
+                    ! check for reflective boundary
+                    if ( prtclArray(i,1) > rsim(1,2) ) then
+                        prtclArray(i,1) = prtclArray(i,1) - (prtclArray(i,1) - rsim(1,2))
+                    end if
+                elseif( r < (p*3.0_b8/6.0_b8) )then
+                    prtclArray(i,2) = prtclArray(i,2) - dr(2)
+                    ! check for reflective boundary
+                    if ( prtclArray(i,2) < rsim(2,1) ) then
+                        prtclArray(i,2) = prtclArray(i,2) + (rsim(2,1) - prtclArray(i,2))
+                    end if
+                elseif( r < (p*4.0_b8/6.0_b8) )then
+                    prtclArray(i,2) = prtclArray(i,2) + dr(2)
+                    ! check for reflective boundary
+                    if ( prtclArray(i,2) > rsim(1,2) ) then
+                        prtclArray(i,2) = prtclArray(i,2) - (prtclArray(i,2) - rsim(2,2))
+                    end if
+                elseif( r < (p*5.0_b8/6.0_b8) )then
+                    prtclArray(i,3) = prtclArray(i,3) - dr(3)
+                    ! check for reflective boundary
+                    if ( prtclArray(i,3) < rsim(3,1) ) then
+                        prtclArray(i,3) = prtclArray(i,3) + (rsim(3,1) - prtclArray(i,3))
+                    end if
+                elseif( r <= p )then
+                    prtclArray(i,3) = prtclArray(i,3) + dr(3)
+                    ! check for reflective boundary
+                    if ( prtclArray(i,3) > rsim(3,2) ) then
+                        prtclArray(i,3) = prtclArray(i,3) - (prtclArray(i,3) - rsim(3,2))
+                    end if
+                endif
+
+                ! do j = 1, 3
+                !     if ( prtclArray(i,j) == rsim(j,1) .OR. prtclArray(i,j) == rsim(j,2) ) then
+                !         write(*,*) 'particle', i, 'on boundary', prtclArray(i,1:4)
+                !     end if
+                ! enddo
+            endif
+        enddo
+    end subroutine prtclUpdateReflect
+
+
+    ! move particles and check boundary conditions
+    ! all boundaries are periodic
+    subroutine prtclUpdateAllPeriodic( p, dr, rsim, prtclArray)
+        implicit none
+        real(b8), intent(in)    :: p ,dr(:), rsim(:,:)
+        real(b8), intent(inout) :: prtclArray(:,:)
+        real(b8) :: r
+        integer  :: i, j
+
+        do i = 1, prtclTotal
             ! check whether array index corresponds to a particle
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 ! move the particle by distance dr(j) in random direction
                 call random_number(r)
-                if ( r < (1.0_b8/6.0_b8) ) then
+                if ( r < (p/6.0_b8) ) then
                     prtclArray(i,1) = prtclArray(i,1) - dr(1)
-                elseif( r < (2.0_b8/6.0_b8) )then
+                elseif( r < (p*2.0_b8/6.0_b8) )then
                     prtclArray(i,1) = prtclArray(i,1) + dr(1)
-                elseif( r < (3.0_b8/6.0_b8) )then
+                elseif( r < (p*3.0_b8/6.0_b8) )then
                     prtclArray(i,2) = prtclArray(i,2) - dr(2)
-                elseif( r < (4.0_b8/6.0_b8) )then
+                elseif( r < (p*4.0_b8/6.0_b8) )then
                     prtclArray(i,2) = prtclArray(i,2) + dr(2)
-                elseif( r < (5.0_b8/6.0_b8) )then
+                elseif( r < (p*5.0_b8/6.0_b8) )then
                     prtclArray(i,3) = prtclArray(i,3) - dr(3)
-                else
-                    prtclArray(i,3) = prtclArray(i,3) + dr(1)
+                elseif( r <= p )then
+                    prtclArray(i,3) = prtclArray(i,3) + dr(3)
                 endif
 
                 ! check periodic boundary conditions
                 do j = 1, 3
                     if( prtclArray(i,j) < rsim(j,1) )then
-                        ! write(*,*) 'too small', prtclArray(i,j), i, j
                         prtclArray(i,j) = rsim(j,2) - (rsim(j,1) - prtclArray(i,j))
                         exit
                     elseif( prtclArray(i,j) > rsim(j,2) )then
-                        ! write(*,*) 'too big', prtclArray(i,j), i, j
                         prtclArray(i,j) = (prtclArray(i,j) - rsim(j,2)) + rsim(j,1)
                         exit
                     endif

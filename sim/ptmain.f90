@@ -85,7 +85,8 @@ do nGeo = 1, geoTotal
 
         ! let system reach equilibrium
         do nt = 1, ntItl
-            call prtclUpdate( p, dr, rsim, prtclArray)
+            ! call prtclUpdate( p, dr, rsim, prtclArray)
+            call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
             call prtclFlux( q, dr, rsim, prtclArray)
         enddo
@@ -93,7 +94,8 @@ do nGeo = 1, geoTotal
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( p, dr, rsim, prtclArray)
+            ! call prtclUpdate( p, dr, rsim, prtclArray)
+            call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
             call prtclFlux( q, dr, rsim, prtclArray)
 
@@ -132,8 +134,6 @@ write(*,*) ' geo Total =', geoTotal
 write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
-write(*,*) 'prtcl intl =', prtclTotal/2
-write(*,*) '#/timestep =', nJ ! the number of particles added per timestep
 do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
@@ -163,22 +163,30 @@ contains
         real(b8), intent(in)  :: prtclArray(:,:)
         real(b8), intent(inout) :: concentration(:,:,:)
         real(b8) :: dc, il, jl, kl, voxl
-        integer  :: i, j, k, n
+        integer  :: i, j, k, n, ic(3), lc(3)
         concentration = 0.0_b8
         ! set length of voxels
-        il = rsim(1,2) / float(cSize(1))
-        jl = rsim(2,2) / float(cSize(2))
-        kl = rsim(3,2) / float(cSize(3))
-        ! write(*,*) 'voxel dimensions', il, jl, kl
-        voxl = il * jl * kl
+        do i = 1, 3
+            lc(i) = rsim(i,2) / float(cSize(i))
+        enddo
+        voxl = lc(1) * lc(2) * lc(3)
         dc   = 1.0_b8
 
         do n = 1, prtclTotal
             if ( prtclArray(n,4) == 1.0_b8 ) then
-                i = floor( prtclArray(n,1) / il) + 1
-                j = floor( prtclArray(n,2) / jl) + 1
-                k = floor( prtclArray(n,3) / kl) + 1
-                concentration(i,j,k) = concentration(i,j,k) + (dc / voxl)
+                do i = 1, 3
+                    if ( prtclArray(n,i) == rsim(i,1) ) then
+                        ic(i) = 1
+                    elseif( prtclArray(n,i) == rsim(i,2) )then
+                        ic(i) = cSize(i)
+                    else
+                        ic(i) = floor( prtclArray(n,i) / lc(i)) + 1
+                    end if
+                    if ( ic(i) > cSize(i) ) then
+                        write(*,*) 'prtcl', n, prtclArray(n,1:4)
+                    end if
+                enddo
+                concentration(ic(1),ic(2),ic(3)) = concentration(ic(1),ic(2),ic(3)) + (dc / voxl)
             end if
         enddo
     end subroutine concentrationUpdate
