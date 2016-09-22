@@ -13,7 +13,6 @@ contains
         real(b8), intent(inout) :: prtclArray(:,:)
         real(b8) :: r
         integer  :: j, k
-        ! add flux to top x boundary
         ! first check probability of event occuring
         if ( q < 1.0 ) then
             call random_number(r)
@@ -33,17 +32,12 @@ contains
         if ( j > prtclTotal ) then
             return
         end if
+        ! add a particle at a random location in y-z plane at the x-boundary
         prtclArray(j,4) = 1.0_b8
-        call random_number(r)
-        prtclArray(j,1) = rsim(1,2) - r*dr(1)
+        prtclArray(j,1) = rsim(1,2)
         do k = 2, 3
             call random_number(r)
             prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)
-        enddo
-        do k = 1, 3
-            if ( prtclArray(j,k) == rsim(k,1) .OR. prtclArray(j,k) == rsim(k,2) ) then
-                write(*,*) 'FLUX: particle', j, 'on boundary', prtclArray(j,1:3)
-            end if
         enddo
 
     end subroutine prtclFlux

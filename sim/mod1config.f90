@@ -4,7 +4,7 @@ use parameters
 
 !!!  SIMULATION PARAMETERS  [start] !!!
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
-integer,  parameter ::   runTotal = 10     ! total number of runs
+integer,  parameter ::   runTotal = 1      ! total number of runs
 integer,  parameter ::  cellTotal = 1      ! total number of cells in system
 integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
 

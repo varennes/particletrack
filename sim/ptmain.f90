@@ -28,7 +28,7 @@ close(10)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = ntItl
+ntTotal = 10*ntItl
 write(*,*) 'particle track'
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*) 'lReal =', lReal, 'dReal =', dReal
@@ -48,13 +48,13 @@ allocate( timePolar( 3, ntTotal))
 allocate( edgeList( cellTotal))
 allocate( timeCount( ntTotal))
 ! initialize concentration array
-write(*,*) '  cSize:'
 do i = 1, 3
-    cSize(i) = ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
-    write(*,*) '  ', cSize(i)
+    cSize(i) = 2 * ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
 enddo
+write(*,*) '  Concentration grid size:', cSize(:)
+write(*,*) '  '
 allocate( concentration( cSize(1), cSize(2), cSize(3)))
-allocate( runCx(runTotal,cSize(1)))
+allocate( runCx(ntTotal,cSize(1)))
 
 call init_random_seed()
 
@@ -71,8 +71,10 @@ do nGeo = 1, geoTotal
     cellArray(:,:,:) = 0.0_b8
     call itlCellCluster( cellTotal, cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
-    edgeList = 0
-    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+
+    ! Use edgeList and call clusterEdgeList if simulating EC polarization
+    ! edgeList = 0
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -106,10 +108,15 @@ do nGeo = 1, geoTotal
             ! do j = 1, 3
             !     timePolar(j,nt) = sum(cellPolar(:,j))
             ! enddo
+
+            ! sample concentration over time
+            call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+            call concentrationXprj( cSize(1), concentration, runCx(nt,:))
         enddo
-        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        call concentrationXprj( cSize(1), concentration, runCx(run,:))
-        ! do i = 1, size
+        ! sample concetration over ensemble
+        ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        ! do i = 1, cSize(1)
         !     runCx(run,i) = concentration( i, 2, 3)
         ! enddo
 
@@ -124,7 +131,7 @@ do nGeo = 1, geoTotal
     ! call wrtCellLocation( cellArray)
 
     ! write concentration x projection
-    call wrtConcentrationX( cSize, runCx, rsim)
+    call wrtConcentrationX( cSize, runCx, rsim, ntTotal)
     close(12)
 enddo
 
@@ -162,8 +169,8 @@ contains
         integer,  intent(in)  :: prtclTotal, cSize(3)
         real(b8), intent(in)  :: prtclArray(:,:)
         real(b8), intent(inout) :: concentration(:,:,:)
-        real(b8) :: dc, il, jl, kl, voxl
-        integer  :: i, j, k, n, ic(3), lc(3)
+        real(b8) :: dc, lc(3), voxl
+        integer  :: i, j, k, n, ic(3)
         concentration = 0.0_b8
         ! set length of voxels
         do i = 1, 3
@@ -182,7 +189,7 @@ contains
                     else
                         ic(i) = floor( prtclArray(n,i) / lc(i)) + 1
                     end if
-                    if ( ic(i) > cSize(i) ) then
+                    if ( abs(ic(i)) > cSize(i) ) then
                         write(*,*) 'prtcl', n, prtclArray(n,1:4)
                     end if
                 enddo
@@ -215,17 +222,18 @@ contains
 
 
     ! write concentration x projection
-    subroutine wrtConcentrationX( cSize, runCx, rsim)
+    subroutine wrtConcentrationX( cSize, runCx, rsim, N)
         implicit none
-        integer,  intent(in) :: cSize(3)
+        integer,  intent(in) :: cSize(3), N
         real(b8), intent(in) :: runCx(:,:), rsim(3,2)
         integer  :: i
         real(b8) :: avg, var
+        write(*,*) 'N =', N
         do i = 1, cSize(1)
-            avg = sum(runCx(:,i)) / float(runTotal)
+            avg = sum(runCx(:,i)) / float(N)
             var = 0.0_b8
-            do j = 1, runTotal
-                var = var + (((runCx(j,i)-avg)**2.0)/float(runTotal))
+            do j = 1, N
+                var = var + (((runCx(j,i)-avg)**2.0)/float(N))
             enddo
             write(300,"(E16.8)", advance="no") avg
             write(300,"(E16.8)", advance="no") var
