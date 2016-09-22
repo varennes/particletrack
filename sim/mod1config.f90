@@ -6,7 +6,6 @@ use parameters
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
 integer,  parameter ::   runTotal = 10     ! total number of runs
 integer,  parameter ::  cellTotal = 1      ! total number of cells in system
-integer,  parameter ::    ntTotal = 1      ! total number of timesteps
 integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
 
 real(b8), parameter :: rCell = 5.0_b8      ! radius of the cell
@@ -25,9 +24,6 @@ contains
         q = kReal * dtReal
         ! calculate the number of timesteps needed for equilibration
         ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
-        ! write(*,*) 'dtReal =', dtReal
-        ! write(*,*) ' diffusion: p =', p
-        ! write(*,*) 'production: q =', q
     end subroutine getProbTimeScale
 
 

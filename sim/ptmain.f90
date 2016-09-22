@@ -6,7 +6,7 @@ use polarization
 
 implicit none
 
-integer :: i, j, nGeo, nt, ntItl, run, cSize(3)
+integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3)
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
@@ -28,6 +28,7 @@ close(10)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
+ntTotal = ntItl
 write(*,*) 'particle track'
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*) 'lReal =', lReal, 'dReal =', dReal
@@ -99,7 +100,6 @@ do nGeo = 1, geoTotal
             ! add flux of particles
             call prtclFlux( q, dr, rsim, prtclArray)
 
-            ! LONG TIME: count the particles within a cell
             ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
@@ -281,12 +281,3 @@ subroutine init_random_seed()
     seed(:) = values(8)
     call random_seed(put=seed)
 end subroutine init_random_seed
-
-
-! returns random number between 0 - 1
-! real(b8) function ran1()
-!     implicit none
-!     real(b8) x
-!     call random_number(x) ! built in fortran 90 random number function
-!     ran1=x
-! end function ran1
