@@ -7,10 +7,11 @@ contains
 
     ! add flux of particles at top x-boundary
     ! gradient is assumed to be in the x-direction (1)
-    subroutine prtclFlux( q, dr, rsim, prtclArray)
+    subroutine prtclFlux( q, dr, rsim, prtclArray, overflow)
         implicit none
         real(b8), intent(in)    :: q, dr(:), rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
+        integer,  intent(inout) :: overflow
         real(b8) :: r
         integer  :: j, k
         ! first check probability of event occuring
@@ -24,8 +25,11 @@ contains
         do while( prtclArray(j,4) == 1.0_b8 )
             j = j + 1
             if ( j > prtclTotal ) then
-                write(*,*) 'FLUX UPDATE: hit max number of particles'
-                write(*,*) '             consider increasing "prtclTotal"'
+                if ( overflow == 0 ) then
+                    write(*,*) 'FLUX UPDATE: hit max number of particles'
+                    write(*,*) '             consider increasing "prtclTotal"'
+                    overflow = 1
+                end if
                 exit
             end if
         enddo

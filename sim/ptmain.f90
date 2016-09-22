@@ -6,7 +6,7 @@ use polarization
 
 implicit none
 
-integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3)
+integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
@@ -28,7 +28,7 @@ close(10)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = 10*ntItl
+ntTotal = ntItl
 write(*,*) 'particle track'
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*) 'lReal =', lReal, 'dReal =', dReal
@@ -91,7 +91,7 @@ do nGeo = 1, geoTotal
             ! call prtclUpdate( p, dr, rsim, prtclArray)
             call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( q, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray, overflow)
         enddo
 
         ! gather statistics
@@ -100,7 +100,7 @@ do nGeo = 1, geoTotal
             ! call prtclUpdate( p, dr, rsim, prtclArray)
             call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( q, dr, rsim, prtclArray)
+            call prtclFlux( q, dr, rsim, prtclArray, overflow)
 
             ! call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
