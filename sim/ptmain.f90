@@ -30,14 +30,13 @@ call getSysLengthScales( dr, rsim)
 call getProbTimeScale( ntItl, dtReal, p, q)
 ntTotal = 1
 write(*,*) 'particle track'
+write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*) 'lReal =', lReal, 'dReal =', dReal
 write(*,*)
 do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
-write(*,*)
-write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
 
 ! allocate memory
@@ -61,8 +60,10 @@ call init_random_seed()
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
     ! open output data file
-    write (filename, "(A1,I0.3,A4)") 's', nGeo, '.200'
+    write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.200'
     open( 12, file=filename)
+    write (filename, "(A3,I0.3,A4)") 'var', nGeo, '.200'
+    open( 13, file=filename)
 
     ! initialize arrays
     concentration = 0.0_b8
@@ -105,9 +106,11 @@ do nGeo = 1, geoTotal
             call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
-            ! do j = 1, 3
-            !     timePolar(j,nt) = sum(cellPolar(:,j))
-            ! enddo
+
+            ! store time series of total cluster polarization
+            do j = 1, 3
+                timePolar(j,nt) = sum(cellPolar(:,j))
+            enddo
 
             ! sample concentration over time - uncomment following 2 lines
             ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
@@ -115,24 +118,23 @@ do nGeo = 1, geoTotal
         enddo
         ! sample concetration over ensemble - uncomment following 2 lines
         call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
-        do i = 1, cSize(1)
-            runCx(run,i) = concentration( i, 10, 10)
-        enddo
+        call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        ! do i = 1, cSize(1)
+        !     runCx(run,i) = concentration( i, 10, 10)
+        ! enddo
 
-        ! calculate and output time averaged molecule count
         ! do j = 1, 3
         !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
         ! enddo
-        call wrtPlrTotal( nGeo, run, cellPolar)
-        ! call wrtCellLocation( cellArray)
+        ! call wrtPlrTotal( run, cellPolar)
+        call wrtPlrTime( run, ntTotal, timePolar)
     enddo
-
-    ! call wrtCellLocation( cellArray)
 
     ! write concentration x projection
     call wrtConcentrationX( cSize, runCx, rsim, runTotal)
+
     close(12)
+    close(13)
 enddo
 
 ! write out simulation information / parameters

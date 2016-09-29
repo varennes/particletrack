@@ -17,13 +17,15 @@ contains
         implicit none
         real(b8), intent(out) :: dtReal, p, q
         integer,  intent(out) :: ntItl
+        real(b8) :: dSim
+        dSim = dReal * 6.0_b8
         ! calculate time step in real units
-        dtReal = min( bReal*bReal / dReal, 1.0_b8 / kReal)
+        dtReal = min( bReal*bReal / dSim, 1.0_b8 / kReal)
         ! calculate probailities of diffusion and production events
-        p = dReal * dtReal / bReal**2
+        p = dSim * dtReal / bReal**2
         q = kReal * dtReal
         ! calculate the number of timesteps needed for equilibration
-        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
+        ntItl = 10 * ceiling( max( lReal**2 / (dSim * dtReal), (kReal * dtReal)**(-1)) )
     end subroutine getProbTimeScale
 
 

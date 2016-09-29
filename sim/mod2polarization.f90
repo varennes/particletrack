@@ -147,10 +147,39 @@ contains
     end subroutine cellpolar2DMW
 
 
-    ! output time-averaged total cluster polarization to fort.200
-    subroutine wrtPlrTotal( nGeo, run, cellPolar)
+    ! output total cluster polarization
+    subroutine wrtPlrTime( run, ntTotal, timePolar)
         implicit none
-        integer,  intent(in) :: nGeo, run
+        integer,  intent(in) :: run, ntTotal
+        real(b8), intent(in), dimension(:,:) :: timePolar
+        real(b8) :: mean(3), var(3)
+        integer  :: i, j
+
+        mean = 0.0_b8
+        var  = 0.0_b8
+        do i = 1, 3
+            mean(i) = sum( timePolar(i,:)) / float(ntTotal)
+
+            do j = 1, ntTotal
+                var(i) = var(i) + (((timePolar(i,j)-mean(i))**2) / float(ntTotal))
+            enddo
+        enddo
+
+        do i = 1, 3
+            write(12,"(E16.8)", advance="no") mean(i)
+            write(13,"(E16.8)", advance="no") var(i)
+        enddo
+        write(12,"(I7)", advance="no") run
+        write(13,"(I7)", advance="no") run
+        write(12,*) ''
+        write(13,*) ''
+    end subroutine wrtPlrTime
+
+
+    ! output total cluster polarization
+    subroutine wrtPlrTotal( run, cellPolar)
+        implicit none
+        integer,  intent(in) :: run
         real(b8), intent(in), dimension(:,:) :: cellPolar
 
         write(12,"(E16.8)", advance="no") cellPolar(1,1)
