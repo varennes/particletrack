@@ -62,8 +62,6 @@ do nGeo = 1, geoTotal
     ! open output data file
     write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.200'
     open( 12, file=filename)
-    write (filename, "(A3,I0.3,A4)") 'var', nGeo, '.200'
-    open( 13, file=filename)
 
     ! initialize arrays
     concentration = 0.0_b8
@@ -134,7 +132,6 @@ do nGeo = 1, geoTotal
     call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
     close(12)
-    close(13)
 enddo
 
 ! write out simulation information / parameters
