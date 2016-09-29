@@ -91,8 +91,8 @@ contains
                                 do k = 1, 3
                                     q(k) = prtclArray(j,k) - center(k)
                                 enddo
-                                q = q / sqrt(dot_product(q,q))
-                                ! q = q
+                                ! q = q / sqrt(dot_product(q,q))
+                                q = q
                             endif
                         endif
                     endif
