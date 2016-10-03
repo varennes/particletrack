@@ -18,7 +18,7 @@ contains
         real(b8), intent(out) :: dtReal, p, q
         integer,  intent(out) :: ntItl
         real(b8) :: dSim
-        dSim = dReal * 6.0_b8
+        dSim = dReal
         ! calculate time step in real units
         dtReal = min( bReal*bReal / dSim, 1.0_b8 / kReal)
         ! calculate probailities of diffusion and production events
