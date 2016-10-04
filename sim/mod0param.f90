@@ -4,9 +4,9 @@ module parameters
 integer,  parameter :: b8 = selected_real_kind(14)
 
 !!! REAL UNIT PARAMETERS !!!
-real(b8), parameter ::  rReal =     5.0_b8   ! in microns
+real(b8), parameter ::  rReal =     2.5_b8   ! in microns
 real(b8), parameter ::  bReal =     0.1_b8   ! in microns
-real(b8), parameter ::  lReal =     5.0_b8   ! in microns
+real(b8), parameter ::  lReal =    10.0_b8   ! in microns
 real(b8), parameter :: syReal =    10.0_b8   ! in microns
 real(b8), parameter :: szReal =    10.0_b8   ! in microns
 real(b8), parameter ::  dReal =    20.0_b8   ! in microns^2/s

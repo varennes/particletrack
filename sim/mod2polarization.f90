@@ -64,46 +64,46 @@ contains
     end subroutine cellpolarECNonAdpt
 
 
-    ! calculate 3D MW cell polarization
-    subroutine cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+
+    ! MW cell polarization vector
+    subroutine polar3DMW( cellArray, prtclArray, cellPolar )
         implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal
         real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: center(3), check, q(3), qtot(3)
-        integer :: i, j, k
-        cellPolar(:,:) = 0.0_b8
-        qtot = 0.0_b8
-        do i = 1, cellTotal
-            do j = 1, 3
-                center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-            qtot = 0.0_b8
-            do j = 1, prtclTotal
-                q = 0.0_b8
-                if ( prtclArray(j,4) == 1.0_b8 ) then
-                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                    if ( check < 0.0 ) then
-                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                            if ( check < 0.0 ) then
-                                do k = 1, 3
-                                    q(k) = prtclArray(j,k) - center(k)
-                                enddo
-                                ! q = q / sqrt(dot_product(q,q))
-                                q = q
-                            endif
-                        endif
-                    endif
-                endif
-                qtot = qtot + q
-            enddo
-            ! cellPolar(i,:) = qtot / sqrt(dot_product(qtot,qtot))
-            cellPolar(i,:) = qtot
-        enddo
+        real(b8) :: center(3), x, y, z
+        integer  :: i, j, n, cellCheck
 
-    end subroutine cellpolarMW
+        center(:)      = 0.0_b8
+        cellPolar(:,:) = 0.0_b8
+
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                x = prtclArray(i,1)
+                y = prtclArray(i,2)
+                z = prtclArray(i,3)
+                ! check if particle is in a cell
+                do n = 1, cellTotal
+                    cellCheck = 0
+                    if ( x > cellArray(n,1,1) .AND. x <= cellArray(n,1,2) ) then
+                        if ( y > cellArray(n,2,1) .AND. y <= cellArray(n,2,2) ) then
+                            if ( z > cellArray(n,3,1) .AND. z <= cellArray(n,3,2) ) then
+                                cellCheck = 1
+                            end if
+                        end if
+                    end if
+                    ! add q contribution and exit cell loop
+                    if ( cellCheck == 1 ) then
+                        do j = 1, 3
+                            center(j) = cellArray(n,j,2) - cellArray(n,j,1)
+                            cellPolar(n,j) = cellPolar(n,j) + prtclArray(i,j) - center(j)
+                        enddo
+                        exit
+                    end if
+                enddo
+            end if
+        enddo
+    end subroutine polar3DMW
+
 
 
     ! calculate 2D MW cell polarization

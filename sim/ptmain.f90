@@ -88,21 +88,20 @@ do nGeo = 1, geoTotal
 
         ! let system reach equilibrium
         do nt = 1, ntItl
-            call prtclUpdate( p, dr, rsim, prtclArray)
-            ! call prtclUpdateReflect( p, dr, rsim, prtclArray)
+            call prtclUpdate( p, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( q, dr, rsim, prtclArray, overflow)
+            call prtclFlux( q, rsim, prtclArray, overflow)
         enddo
 
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( p, dr, rsim, prtclArray)
+            call prtclUpdate( p, rsim, prtclArray)
             ! call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
-            call prtclFlux( q, dr, rsim, prtclArray, overflow)
+            call prtclFlux( q, rsim, prtclArray, overflow)
 
-            call cellpolarMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+            call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
 
