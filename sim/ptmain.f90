@@ -7,7 +7,7 @@ use polarization
 implicit none
 
 integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
-real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax
+real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax, tCPU0, tCPU1
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
 real(b8), allocatable :: prtclArray(:,:)
@@ -19,10 +19,7 @@ real(b8), allocatable :: timePolar(:,:), timeCount(:)
 
 character(len=1024) :: filename
 
-! open/create file
-open(unit=10, file='prtclLocation.dat', action='write', status='replace')
-write(10,*) ' '
-close(10)
+call cpu_time(tCPU0)
 
 ! initialize simulation space size
 call getSysLengthScales( dr, rsim)
@@ -30,14 +27,14 @@ call getSysLengthScales( dr, rsim)
 call getProbTimeScale( ntItl, dtReal, p, q)
 ntTotal = 1
 write(*,*) 'particle track'
-write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
+write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
+write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
-write(*,*) 'lReal =', lReal, 'dReal =', dReal
 write(*,*)
-do i = 1, 3
-    write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
-enddo
+write(*,*) 'Average gradient:'
+write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
 write(*,*)
+
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -135,24 +132,19 @@ do nGeo = 1, geoTotal
 enddo
 
 ! write out simulation information / parameters
+call cpu_time(tCPU1)
 write(*,*)
 write(*,*) ' geo Total =', geoTotal
 write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
+write(*,*) '   ntTotal =', ntTotal, 'ntItl =', ntItl
+write(*,*)
 do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
-write(*,*) 'ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
-write(*,*) 'Length and Time Conversions:'
-write(*,*) '  1 sim.   length =', rReal / rCell, 'microns'
-write(*,*) '  1 sim. timestep =', dtReal, 'seconds'
-write(*,*)
-write(*,*) 'Average gradient:'
-write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
-write(*,*) kReal / (dReal * syReal * szReal) * (rReal / rCell)**4.0, '/(sim. length)^4'
-write(*,*)
+write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
 
 
 deallocate( prtclArray)

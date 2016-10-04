@@ -4,11 +4,9 @@ use parameters
 
 !!!  SIMULATION PARAMETERS  [start] !!!
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
-integer,  parameter ::   runTotal = 10     ! total number of runs
+integer,  parameter ::   runTotal = 1      ! total number of runs
 integer,  parameter ::  cellTotal = 1      ! total number of cells in system
 integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
-
-real(b8), parameter :: rCell = 2.5_b8      ! radius of the cell
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
@@ -17,15 +15,13 @@ contains
         implicit none
         real(b8), intent(out) :: dtReal, p, q
         integer,  intent(out) :: ntItl
-        real(b8) :: dSim
-        dSim = dReal
         ! calculate time step in real units
-        dtReal = min( bReal*bReal / dSim, 1.0_b8 / kReal)
+        dtReal = min( bReal*bReal / dReal, 1.0_b8 / kReal)
         ! calculate probailities of diffusion and production events
-        p = dSim * dtReal / bReal**2
+        p = dReal * dtReal / bReal**2
         q = kReal * dtReal
         ! calculate the number of timesteps needed for equilibration
-        ntItl = 10 * ceiling( max( lReal**2 / (dSim * dtReal), (kReal * dtReal)**(-1)) )
+        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
     end subroutine getProbTimeScale
 
 
@@ -33,12 +29,11 @@ contains
         implicit none
         real(b8) , intent(out) :: dr(3), rsim(3,2)
 
+        dr(:) = bReal
         rsim(:,1) = 0.0_b8
-        rsim(1,2) =  lReal * rCell / rReal
-        rsim(2,2) = syReal * rCell / rReal
-        rsim(3,2) = szReal * rCell / rReal
-
-        dr(:) = bReal * rCell / rReal
+        rsim(1,2) =  lReal
+        rsim(2,2) = syReal
+        rsim(3,2) = szReal
     end subroutine getSysLengthScales
 
 
@@ -61,18 +56,18 @@ contains
         ! set dr, the displacement vector between cell centers
         dr(:,:) = 0.0_b8
         do i = 1, 3
-            dr(i,i) = rCell * 2.0_b8
+            dr(i,i) = rReal * 2.0_b8
         enddo
         do i = 4, 6
-            dr(i,i-3) = -rCell * 2.0_b8
+            dr(i,i-3) = -rReal * 2.0_b8
         enddo
         ! set center and cellArray for cell 1
         do i = 1, 3
             center(1,i) = 0.0_b8
         enddo
         do i = 1, 3
-            cellArray(1,i,1) = center(1,i) - rCell
-            cellArray(1,i,2) = center(1,i) + rCell
+            cellArray(1,i,1) = center(1,i) - rReal
+            cellArray(1,i,2) = center(1,i) + rReal
         enddo
         if ( cellTotal > 1 ) then
             ! set center and cellArray for cells 2 to cellTotal
@@ -96,8 +91,8 @@ contains
                     if ( cellCheck == 0 ) then
                         center(i,:) = test
                         do ii = 1, 3
-                            cellArray(i,ii,1) = center(i,ii) - rCell
-                            cellArray(i,ii,2) = center(i,ii) + rCell
+                            cellArray(i,ii,1) = center(i,ii) - rReal
+                            cellArray(i,ii,2) = center(i,ii) + rReal
                         enddo
                         i = i + 1
                     end if
@@ -118,7 +113,7 @@ contains
         do i = 1, 3
             clusterLength = maxval( cellArray(:,i,2)) - minval( cellArray(:,i,1))
             rsim(i,1) = 0.0_b8
-            rsim(i,2) = clusterLength + (rCell * 4.0_b8)
+            rsim(i,2) = clusterLength + (rReal * 4.0_b8)
             do j = 1, cellTotal
                 cellArray(j,i,1) = cellArray(j,i,1) + ((rsim(i,2) - rsim(i,1)) / 2.0_b8)
                 cellArray(j,i,2) = cellArray(j,i,2) + ((rsim(i,2) - rsim(i,1)) / 2.0_b8)
@@ -168,28 +163,28 @@ contains
         ! set dr
         dr(:,:) = 0.0_b8
         do i = 1, 3
-            dr(i,i) = 2.0 * rCell
+            dr(i,i) = 2.0 * rReal
         enddo
         do i = 4, 6
-            dr(i,i-3) = -2.0 * rCell
+            dr(i,i-3) = -2.0 * rReal
         enddo
         ! set center and cellArray for cell 1
         do i = 1, 3
             center(1,i) = (rsim(i,2) - rsim(i,1)) / 2.0_b8
         enddo
         do i = 1, 3
-            cellArray(1,i,1) = center(1,i) - rCell
-            cellArray(1,i,2) = center(1,i) + rCell
+            cellArray(1,i,1) = center(1,i) - rReal
+            cellArray(1,i,2) = center(1,i) + rReal
         enddo
 
         if ( cellTotal == 1 ) then
             return
         elseif ( cellTotal == 2 ) then
-            center(2,1) = center(1,1) + (2.0 * rCell)
+            center(2,1) = center(1,1) + (2.0 * rReal)
             center(2,2:3) = center(1,2:3)
             do i = 1, 3
-                cellArray(2,i,1) = center(2,i) - rCell
-                cellArray(2,i,2) = center(2,i) + rCell
+                cellArray(2,i,1) = center(2,i) - rReal
+                cellArray(2,i,2) = center(2,i) + rReal
             enddo
             return
         end if
@@ -215,8 +210,8 @@ contains
                 if ( cellCheck == 0 ) then
                     center(i,:) = test
                     do ii = 1, 3
-                        cellArray(i,ii,1) = test(ii) - rCell
-                        cellArray(i,ii,2) = test(ii) + rCell
+                        cellArray(i,ii,1) = test(ii) - rReal
+                        cellArray(i,ii,2) = test(ii) + rReal
                     enddo
                     i = i + 1
                 end if
@@ -258,8 +253,8 @@ contains
         y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
         z0 = (rsim(3,2) - rsim(3,1)) / 2.0_b8
         do i = 1, 3
-            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
-            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
+            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rReal
+            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rReal
         enddo
         center(:,:) = 0
         ! write(*,*) center(1,1:3)
@@ -345,9 +340,9 @@ contains
         enddo
         itest = cellTotal
         do i = 2, itest
-            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
-            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
-            cellArray(i,3,1:2) = [ z0 + (2.0*float(center(i,3))-1.0) * rCell, z0 + (2.0*float(center(i,3))+1.0) * rCell]
+            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rReal, x0 + (2.0*float(center(i,1))+1.0) * rReal]
+            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rReal, y0 + (2.0*float(center(i,2))+1.0) * rReal]
+            cellArray(i,3,1:2) = [ z0 + (2.0*float(center(i,3))-1.0) * rReal, z0 + (2.0*float(center(i,3))+1.0) * rReal]
         enddo
         if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
             write(*,*) '           INITIALIZATION ERROR             '
@@ -384,8 +379,8 @@ contains
         cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hCell
         cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
         do i = 1, 2
-            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rCell
-            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rCell
+            cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rReal
+            cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rReal
         enddo
         center(:,:) = 0
         ! write(*,*) center(1,1:2)
@@ -453,8 +448,8 @@ contains
         enddo
         itest = cellTotal
         do i = 2, itest
-            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rCell, x0 + (2.0*float(center(i,1))+1.0) * rCell]
-            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rCell, y0 + (2.0*float(center(i,2))+1.0) * rCell]
+            cellArray(i,1,1:2) = [ x0 + (2.0*float(center(i,1))-1.0) * rReal, x0 + (2.0*float(center(i,1))+1.0) * rReal]
+            cellArray(i,2,1:2) = [ y0 + (2.0*float(center(i,2))-1.0) * rReal, y0 + (2.0*float(center(i,2))+1.0) * rReal]
             cellArray(i,3,1:2) = cellArray(1,3,1:2)
         enddo
         if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
@@ -487,17 +482,17 @@ contains
         hCell = 0.075_b8
         ! set dr
         dr(:,:) = 0.0_b8
-        dr(1,1) =  rCell * 2.0_b8
-        dr(2,2) =  rCell * 2.0_b8
-        dr(3,1) = -rCell * 2.0_b8
-        dr(4,2) = -rCell * 2.0_b8
+        dr(1,1) =  rReal * 2.0_b8
+        dr(2,2) =  rReal * 2.0_b8
+        dr(3,1) = -rReal * 2.0_b8
+        dr(4,2) = -rReal * 2.0_b8
         ! set center and cellArray for cell 1
         center(1,1) = (rsim(1,2) - rsim(1,1)) / 2.0_b8
         center(1,2) = (rsim(2,2) - rsim(2,1)) / 2.0_b8
         center(1,3) = (rsim(3,2) - rsim(3,1)) / 2.0_b8
         do i = 1, 2
-            cellArray(1,i,1) = center(1,i) - rCell
-            cellArray(1,i,2) = center(1,i) + rCell
+            cellArray(1,i,1) = center(1,i) - rReal
+            cellArray(1,i,2) = center(1,i) + rReal
         enddo
         cellArray(1,3,1) = center(1,3) - hCell
         cellArray(1,3,2) = center(1,3) + hCell
@@ -525,8 +520,8 @@ contains
                 if ( cellCheck == 0 ) then
                     center(i,:) = test
                     do ii = 1, 2
-                        cellArray(i,ii,1) = test(ii) - rCell
-                        cellArray(i,ii,2) = test(ii) + rCell
+                        cellArray(i,ii,1) = test(ii) - rReal
+                        cellArray(i,ii,2) = test(ii) + rReal
                     enddo
                     cellArray(i,3,1) = test(3) - hCell
                     cellArray(i,3,2) = test(3) + hCell
@@ -566,10 +561,10 @@ contains
         ! set dr
         dr(:,:) = 0.0_b8
         do i = 1, 3
-            dr(i,i) = 2.0 * rCell
+            dr(i,i) = 2.0 * rReal
         enddo
         do i = 4, 6
-            dr(i,i-3) = -2.0 * rCell
+            dr(i,i-3) = -2.0 * rReal
         enddo
         ! set cell center from cellArray
         center(:,:)      = 0.0_b8
@@ -590,7 +585,7 @@ contains
                     dcell = dcell + (center(n1,j) - center(n2,j))**2
                 enddo
                 dcell = dsqrt(dcell)
-                if ( dcell >= 2.0*rCell-0.000001 .AND. dcell <= 2.0*rCell+0.000001 ) then
+                if ( dcell >= 2.0*rReal-0.000001 .AND. dcell <= 2.0*rReal+0.000001 ) then
                     check = check + 1
                 end if
                 if ( check > 5 ) then
