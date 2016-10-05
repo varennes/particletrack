@@ -103,6 +103,44 @@ contains
     end subroutine prtclUpdate
 
 
+    ! calculate the average location of the particles within a cell
+    ! relative = 1 indicates that the locations should be realtive to the cell center
+    subroutine prtclCellLocation( relative, cell, prtclArray, prtclLocation)
+        implicit none
+        integer,  intent(in)  :: relative
+        real(b8), intent(in)  :: cell(:,:), prtclArray(:,:)
+        real(b8), intent(out) :: prtclLocation(:)
+        real(b8) :: r(3)
+        integer  :: i, j, count
+
+        count = 0
+        prtclLocation(:) = 0.0_b8
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                r(1) = prtclArray(i,1)
+                r(2) = prtclArray(i,2)
+                r(3) = prtclArray(i,3)
+                if ( r(1) > cell(1,1) .AND. r(1) <= cell(1,2) ) then
+                    if ( r(2) > cell(2,1) .AND. r(2) <= cell(2,2) ) then
+                        if ( r(3) > cell(3,1) .AND. r(3) <= cell(3,2) ) then
+                            count = count + 1
+                            do j = 1, 3
+                                prtclLocation(j) = prtclLocation(j) + r(j)
+                                if ( relative == 1 ) then
+                                    prtclLocation(j) = prtclLocation(j) - ((cell(j,2) + cell(j,1))/2.0_b8)
+                                end if
+                            enddo
+                        end if
+                    end if
+                end if
+            end if
+        enddo
+        do j = 1, 3
+            ! prtclLocation(j) = prtclLocation(j) / float(count)
+        enddo
+    end subroutine prtclCellLocation
+
+
     ! output particle location data
     subroutine wrtPrtclLocation( N, nt, prtclArray)
         implicit none

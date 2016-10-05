@@ -10,7 +10,7 @@ integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax, tCPU0, tCPU1
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2)
-real(b8), allocatable :: prtclArray(:,:)
+real(b8), allocatable :: prtclArray(:,:), prtclLocation(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
@@ -38,6 +38,7 @@ write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
+allocate( prtclLocation( cellTotal, 3))
 allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
@@ -98,6 +99,9 @@ do nGeo = 1, geoTotal
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
+            call prtclCellLocation( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
+            write(100,*) prtclLocation(1,:)
+
             call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
@@ -143,10 +147,15 @@ write(*,*)
 do i = 1, 3
     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
 enddo
+write(*,*) '  cell 1 location'
+do i = 1, 3
+    write(*,*) i, cellArray(1,i,1), cellArray(1,i,2)
+enddo
 write(*,*)
 write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
 
 
+deallocate( prtclLocation)
 deallocate( prtclArray)
 deallocate( cellArray)
 deallocate( cellPolar)
