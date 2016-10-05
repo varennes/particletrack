@@ -99,17 +99,19 @@ do nGeo = 1, geoTotal
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
-            call prtclCellLocation( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
+            ! call prtclCellLocation( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
+            call prtclCount1( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
+            ! timeCount(nt) = prtclLocation(1,1)
             write(100,*) prtclLocation(1,:)
 
-            call polar3DMW( cellArray, prtclArray, cellPolar )
+            ! call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
 
             ! store time series of total cluster polarization
-            do j = 1, 3
-                timePolar(j,nt) = sum(cellPolar(:,j))
-            enddo
+            ! do j = 1, 3
+            !     timePolar(j,nt) = sum(cellPolar(:,j))
+            ! enddo
 
             ! sample concentration over time - uncomment following 2 lines
             ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
@@ -126,7 +128,8 @@ do nGeo = 1, geoTotal
         !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
         ! enddo
         ! call wrtPlrTotal( run, cellPolar)
-        call wrtPlrTime( run, ntTotal, timePolar)
+        ! call wrtPlrTime( run, ntTotal, timePolar)
+        ! write(101,*) sum(timeCount) / float(ntTotal)
     enddo
 
     ! write concentration x projection

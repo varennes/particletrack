@@ -105,6 +105,46 @@ contains
 
     ! calculate the average location of the particles within a cell
     ! relative = 1 indicates that the locations should be realtive to the cell center
+    subroutine prtclCount1( relative, cell, prtclArray, prtclLocation)
+        implicit none
+        integer,  intent(in)  :: relative
+        real(b8), intent(in)  :: cell(:,:), prtclArray(:,:)
+        real(b8), intent(out) :: prtclLocation(:)
+        real(b8) :: r(3), rmag
+        integer  :: i, j, count
+
+        count = 0
+        prtclLocation(:) = 0.0_b8
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                do j = 1, 3
+                    r(j) = prtclArray(i,j) - ((cell(j,2) + cell(j,1))/2.0_b8)
+                enddo
+                if ( r(1) > -rReal .AND. r(1) <= rReal ) then
+                    if ( r(2) > -rReal .AND. r(2) <= rReal ) then
+                        if ( r(3) > -rReal .AND. r(3) <= rReal ) then
+                            count = count + 1
+                            rmag = sqrt( r(1)**2 + r(2)**2 + r(3)**2 )
+                            do j = 1, 3
+                                prtclLocation(j) = prtclLocation(j) + r(j) / rmag
+                                ! if ( relative == 1 ) then
+                                !     prtclLocation(j) = prtclLocation(j) - ((cell(j,2) + cell(j,1))/2.0_b8)
+                                ! end if
+                            enddo
+                        end if
+                    end if
+                end if
+            end if
+        enddo
+        ! do j = 1, 3
+        !     prtclLocation(j) = prtclLocation(j) / float(count)
+        ! enddo
+        ! write(*,*) count
+    end subroutine prtclCount1
+
+
+    ! calculate the average location of the particles within a cell
+    ! relative = 1 indicates that the locations should be realtive to the cell center
     subroutine prtclCellLocation( relative, cell, prtclArray, prtclLocation)
         implicit none
         integer,  intent(in)  :: relative
