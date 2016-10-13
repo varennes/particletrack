@@ -58,7 +58,7 @@ call init_random_seed()
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
     ! open output data file
-    write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.200'
+    write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.dat'
     open( 12, file=filename)
 
     ! initialize arrays
@@ -100,9 +100,16 @@ do nGeo = 1, geoTotal
             call prtclFlux( q, rsim, prtclArray, overflow)
 
             ! call prtclCellLocation( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
-            call prtclCount1( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
+            ! call prtclCount1( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
             ! timeCount(nt) = prtclLocation(1,1)
-            write(100,*) prtclLocation(1,:)
+            ! write(100,*) prtclLocation(1,:)
+
+            do i = 1, cellTotal
+                call prtclCount1( 1, cellArray(i,:,:), prtclArray, prtclLocation(i,:))
+            enddo
+            do j = 1, 3
+                timePolar(j,nt) = sum(prtclLocation(:,j))
+            enddo
 
             ! call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
@@ -128,7 +135,7 @@ do nGeo = 1, geoTotal
         !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
         ! enddo
         ! call wrtPlrTotal( run, cellPolar)
-        ! call wrtPlrTime( run, ntTotal, timePolar)
+        call wrtPlrTime( run, ntTotal, timePolar)
         ! write(101,*) sum(timeCount) / float(ntTotal)
     enddo
 
