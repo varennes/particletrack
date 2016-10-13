@@ -6,63 +6,59 @@ use sysconfig
 contains
 
     ! calculate EC cell polarization, individual polarization vectors are NOT adaptive
-    subroutine cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+    subroutine polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
         implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal, edgeList(:)
-        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        integer,  intent(in)  :: edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:), clstrCOM(3), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: clstrCOM(3), cellCOM(3,2), center(3), check, q(3)
-        real(b8) :: nCell, nCOM
-        integer :: i, j, k
+        real(b8) :: nCell(cellTotal), rCell(cellTotal,3), r(3)
+        integer :: i, j, n
 
         cellPolar(:,:) = 0.0_b8
         if ( cellTotal == 1 ) then
             return
         end if
 
-        ! calculate Cluster COM
-        clstrCOM = 0.0_b8
+        rCell = 0.0_b8
+        nCell = 0.0_b8
         do i = 1, cellTotal
-            do j = 1, 3
-                clstrCOM(j) = clstrCOM(j) + cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-        enddo
-        clstrCOM(:) = clstrCOM(:) / float(cellTotal)
-
-        do i = 1, cellTotal
-            nCell = 0.0_b8
-            ! check if cell is on the edge of the cluster
             if ( edgeList(i) == 1 ) then
-                q = 0.0_b8
                 do j = 1, 3
-                    center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-                    q(j) = center(j) - clstrCOM(j)
-                    if ( abs(q(j)) < (10.0**(-15)) ) then
-                        q(j) = 0.0_b8
-                    end if
+                    rCell(i,j) = ((cellArray(i,j,2) + cellArray(i,j,1)) / 2.0_b8) - clstrCOM(j)
                 enddo
-                q = q / sqrt(dot_product(q,q))
-                ! calculate the concentration in cell i
-                do j = 1, prtclTotal
-                    if ( prtclArray(j,4) == 1.0_b8 ) then
-                        check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                            if ( check < 0.0 ) then
-                                check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                                if ( check < 0.0 ) then
-                                    nCell = nCell + 1.0_b8
-                                endif
-                            endif
-                        endif
-                    endif
-                enddo
-                ! write(*,*) '   cell', i, 'q =', q, 'nCell =', nCell
-                cellPolar(i,:) = nCell * q
+                rCell(i,:) = rCell(i,:) / sqrt( rCell(i,1)**2 + rCell(i,2)**2 + rCell(i,3)**2)
+                write(*,*) rCell(i,:)
             end if
         enddo
-    end subroutine cellpolarECNonAdpt
 
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                do j = 1, 3
+                    r(j) = prtclArray(i,j)
+                enddo
+                ! check if particle is in a cell on the edge
+                do n = 1, cellTotal
+                    if ( edgeList(n) == 0 ) then
+                        cycle
+                    end if
+                    if ( r(1) > cellArray(n,1,1) .AND. r(1) <= cellArray(n,1,2) ) then
+                        if ( r(2) > cellArray(n,2,1) .AND. r(2) <= cellArray(n,2,2) ) then
+                            if ( r(3) > cellArray(n,3,1) .AND. r(3) <= cellArray(n,3,2) ) then
+                                nCell(n) = nCell(n) + 1.0_b8
+                            end if
+                        end if
+                    end if
+                enddo
+            end if
+        enddo
+
+        do i = 1, cellTotal
+            if ( edgeList(i) == 0 ) then
+                cycle
+            end if
+            cellPolar(i,:) = nCell(i) * rCell(i,:)
+        enddo
+    end subroutine polar3DECnonadpt
 
 
     ! MW cell polarization vector
@@ -70,7 +66,7 @@ contains
         implicit none
         real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: center(3), x, y, z
+        real(b8) :: center(3), r(3), rmag
         integer  :: i, j, n, cellCheck
 
         center(:)      = 0.0_b8
@@ -78,15 +74,15 @@ contains
 
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
-                x = prtclArray(i,1)
-                y = prtclArray(i,2)
-                z = prtclArray(i,3)
+                do j = 1, 3
+                    r(j) = prtclArray(i,j)
+                enddo
                 ! check if particle is in a cell
                 do n = 1, cellTotal
                     cellCheck = 0
-                    if ( x > cellArray(n,1,1) .AND. x <= cellArray(n,1,2) ) then
-                        if ( y > cellArray(n,2,1) .AND. y <= cellArray(n,2,2) ) then
-                            if ( z > cellArray(n,3,1) .AND. z <= cellArray(n,3,2) ) then
+                    if ( r(1) > cellArray(n,1,1) .AND. r(1) <= cellArray(n,1,2) ) then
+                        if ( r(2) > cellArray(n,2,1) .AND. r(2) <= cellArray(n,2,2) ) then
+                            if ( r(3) > cellArray(n,3,1) .AND. r(3) <= cellArray(n,3,2) ) then
                                 cellCheck = 1
                             end if
                         end if
@@ -94,8 +90,11 @@ contains
                     ! add q contribution and exit cell loop
                     if ( cellCheck == 1 ) then
                         do j = 1, 3
-                            center(j) = cellArray(n,j,2) - cellArray(n,j,1)
-                            cellPolar(n,j) = cellPolar(n,j) + prtclArray(i,j) - center(j)
+                            r(j) = prtclArray(i,j) - ((cellArray(n,j,2) + cellArray(n,j,1))/2.0_b8)
+                        enddo
+                        rmag = sqrt( r(1)**2 + r(2)**2 + r(3)**2 )
+                        do j = 1, 3
+                            cellPolar(n,j) = cellPolar(n,j) + r(j) / rmag
                         enddo
                         exit
                     end if
@@ -103,7 +102,6 @@ contains
             end if
         enddo
     end subroutine polar3DMW
-
 
 
     ! calculate 2D MW cell polarization

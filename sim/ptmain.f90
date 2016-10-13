@@ -9,7 +9,7 @@ implicit none
 integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax, tCPU0, tCPU1
 real(b8) :: dtReal, p, q, r
-real(b8) :: dr(3), rsim(3,2)
+real(b8) :: dr(3), rsim(3,2), clstrCOM(3)
 real(b8), allocatable :: prtclArray(:,:), prtclLocation(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
@@ -72,7 +72,8 @@ do nGeo = 1, geoTotal
 
     ! Use edgeList and call clusterEdgeList if simulating EC polarization
     ! edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    call clusterCenter( cellArray, clstrCOM)
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -104,29 +105,29 @@ do nGeo = 1, geoTotal
             ! timeCount(nt) = prtclLocation(1,1)
             ! write(100,*) prtclLocation(1,:)
 
-            do i = 1, cellTotal
-                call prtclCount1( 1, cellArray(i,:,:), prtclArray, prtclLocation(i,:))
-            enddo
-            do j = 1, 3
-                timePolar(j,nt) = sum(prtclLocation(:,j))
-            enddo
+            ! do i = 1, cellTotal
+            !     call prtclCount1( 1, cellArray(i,:,:), prtclArray, prtclLocation(i,:))
+            ! enddo
+            ! do j = 1, 3
+            !     timePolar(j,nt) = sum(prtclLocation(:,j))
+            ! enddo
 
             ! call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-            ! call cellpolarECNonAdpt( cellTotal, prtclTotal, cellArray, edgeList, prtclArray, cellPolar)
+            call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! store time series of total cluster polarization
-            ! do j = 1, 3
-            !     timePolar(j,nt) = sum(cellPolar(:,j))
-            ! enddo
+            do j = 1, 3
+                timePolar(j,nt) = sum(cellPolar(:,j))
+            enddo
 
             ! sample concentration over time - uncomment following 2 lines
             ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
             ! call concentrationXprj( cSize(1), concentration, runCx(nt,:))
         enddo
         ! sample concetration over ensemble - uncomment following 2 lines
-        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
         ! do i = 1, cSize(1)
         !     runCx(run,i) = concentration( i, 10, 10)
         ! enddo
@@ -153,14 +154,16 @@ write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '   ntTotal =', ntTotal, 'ntItl =', ntItl
-write(*,*)
-do i = 1, 3
-    write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
-enddo
-write(*,*) '  cell 1 location'
-do i = 1, 3
-    write(*,*) i, cellArray(1,i,1), cellArray(1,i,2)
-enddo
+! write(*,*)
+! do i = 1, 3
+!     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
+! enddo
+! do i = 1, cellTotal
+!     write(*,*) '  cell location', i
+!     do j = 1, 3
+!         write(*,*) j, cellArray(i,j,1), cellArray(i,j,2)
+!     enddo
+! enddo
 write(*,*)
 write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
 
