@@ -66,11 +66,11 @@ do nGeo = 1, geoTotal
     runCx = 0.0_b8
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
-    ! call itlCellCluster( cellTotal, cellArray, rsim)
-    call itl3DClusterNN( cellArray, rsim)
+    call itl3DRandom( cellTotal, cellArray, rsim)
+    ! call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
 
-    ! Use edgeList and call clusterEdgeList if simulating EC polarization
+    ! call clusterEdgeList & clusterCenter if simulating EC polarization
     ! edgeList = 0
     ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
     ! call clusterCenter( cellArray, clstrCOM)
