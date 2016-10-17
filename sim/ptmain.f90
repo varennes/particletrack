@@ -72,8 +72,8 @@ do nGeo = 1, geoTotal
 
     ! Use edgeList and call clusterEdgeList if simulating EC polarization
     ! edgeList = 0
-    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    call clusterCenter( cellArray, clstrCOM)
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    ! call clusterCenter( cellArray, clstrCOM)
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -112,9 +112,9 @@ do nGeo = 1, geoTotal
             !     timePolar(j,nt) = sum(prtclLocation(:,j))
             ! enddo
 
-            ! call polar3DMW( cellArray, prtclArray, cellPolar )
+            call polar3DMW( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
-            call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
+            ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! store time series of total cluster polarization
             do j = 1, 3

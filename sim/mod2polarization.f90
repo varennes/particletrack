@@ -13,6 +13,7 @@ contains
         real(b8), intent(out) :: cellPolar(:,:)
         real(b8) :: nCell(cellTotal), rCell(cellTotal,3), r(3)
         integer :: i, j, n
+        integer :: exitCount
 
         cellPolar(:,:) = 0.0_b8
         if ( cellTotal == 1 ) then
@@ -27,12 +28,13 @@ contains
                     rCell(i,j) = ((cellArray(i,j,2) + cellArray(i,j,1)) / 2.0_b8) - clstrCOM(j)
                 enddo
                 rCell(i,:) = rCell(i,:) / sqrt( rCell(i,1)**2 + rCell(i,2)**2 + rCell(i,3)**2)
-                write(*,*) rCell(i,:)
             end if
         enddo
 
+        exitCount = 0
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
                 do j = 1, 3
                     r(j) = prtclArray(i,j)
                 enddo
@@ -49,6 +51,11 @@ contains
                         end if
                     end if
                 enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
             end if
         enddo
 
@@ -68,12 +75,15 @@ contains
         real(b8), intent(out) :: cellPolar(:,:)
         real(b8) :: center(3), r(3), rmag
         integer  :: i, j, n, cellCheck
+        integer  :: exitCount
 
         center(:)      = 0.0_b8
         cellPolar(:,:) = 0.0_b8
 
+        exitCount = 0
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
                 do j = 1, 3
                     r(j) = prtclArray(i,j)
                 enddo
@@ -99,6 +109,11 @@ contains
                         exit
                     end if
                 enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
             end if
         enddo
     end subroutine polar3DMW
