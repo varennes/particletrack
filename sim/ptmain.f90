@@ -25,7 +25,7 @@ call cpu_time(tCPU0)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = 1
+ntTotal = ntItl
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
 write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
@@ -66,8 +66,8 @@ do nGeo = 1, geoTotal
     runCx = 0.0_b8
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
-    call itl3DRandom( cellTotal, cellArray, rsim)
-    ! call itl3DClusterNN( cellArray, rsim)
+    ! call itl3DRandom( cellTotal, cellArray, rsim)
+    call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
@@ -75,22 +75,21 @@ do nGeo = 1, geoTotal
     ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
     ! call clusterCenter( cellArray, clstrCOM)
 
+    ! let system reach equilibrium
+    prtclArray(:,:) = 0.0_b8
+    do nt = 1, ntItl
+        ! move particles
+        call prtclUpdate( p, rsim, prtclArray)
+        ! add flux of particles
+        call prtclFlux( q, rsim, prtclArray, overflow)
+    enddo
+
     do run = 1, runTotal
         write(*,*) ' run', run
 
         timeCount(:)     = 0.0_b8
         cellPolar(:,:)   = 0.0_b8
         timePolar(:,:)   = 0.0_b8
-
-        ! initialize particle positions
-        prtclArray(:,:) = 0.0_b8
-
-        ! let system reach equilibrium
-        do nt = 1, ntItl
-            call prtclUpdate( p, rsim, prtclArray)
-            ! add flux of particles
-            call prtclFlux( q, rsim, prtclArray, overflow)
-        enddo
 
         ! gather statistics
         do nt = 1, ntTotal
@@ -141,7 +140,7 @@ do nGeo = 1, geoTotal
     enddo
 
     ! write concentration x projection
-    call wrtConcentrationX( cSize, runCx, rsim, runTotal)
+    ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
     close(12)
 enddo
