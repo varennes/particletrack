@@ -468,23 +468,20 @@ contains
     end subroutine wrtCellLocation
 
 
-    ! output cell locations and system size
+    ! output cell locations and system size. Output file fort.199
     subroutine wrtOutClusterSys( cellTotal, cellArray, rsim)
         implicit none
         integer,  intent(in) :: cellTotal
         real(b8), intent(in) :: cellArray(:,:,:), rsim(:,:)
         integer :: i
-        write(*,*)
+        write(199,*)
         do i = 1, cellTotal
-            write(*,*) 'cell', i
-            write(*,*) '   x', cellArray(i,1,:), cellArray(i,1,2)-cellArray(i,1,1)
-            write(*,*) '   y', cellArray(i,2,:), cellArray(i,2,2)-cellArray(i,2,1)
-            write(*,*) '   z', cellArray(i,3,:), cellArray(i,3,2)-cellArray(i,3,1)
+            write(199,*) 'cell', i
+            write(199,*) '   x', cellArray(i,1,:), cellArray(i,1,2)-cellArray(i,1,1)
+            write(199,*) '   y', cellArray(i,2,:), cellArray(i,2,2)-cellArray(i,2,1)
+            write(199,*) '   z', cellArray(i,3,:), cellArray(i,3,2)-cellArray(i,3,1)
         enddo
-        write(*,*)
-        write(*,*) 'rsim x', rsim(1,:)
-        write(*,*) 'rsim y', rsim(2,:)
-        write(*,*) 'rsim z', rsim(3,:)
+        write(199,*)
     end subroutine wrtOutClusterSys
 
 end module

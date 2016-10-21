@@ -38,8 +38,9 @@ contains
             return
         end if
         ! add a particle at a random location in y-z plane at the x-boundary
+        call random_number(r)
         prtclArray(j,4) = 1.0_b8
-        prtclArray(j,1) = rsim(1,2)
+        prtclArray(j,1) = rsim(1,2) - bReal * r
         do k = 2, 3
             call random_number(r)
             prtclArray(j,k) = r *(rsim(k,2) - rsim(k,1)) + rsim(k,1)

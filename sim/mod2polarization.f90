@@ -69,18 +69,19 @@ contains
 
 
     ! MW cell polarization vector
-    subroutine polar3DMW( cellArray, prtclArray, cellPolar )
+    subroutine polar3DMWv1( cellArray, prtclArray, cellPolar )
         implicit none
         real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
         real(b8) :: center(3), r(3), rmag
         integer  :: i, j, n, cellCheck
-        integer  :: exitCount
+        integer  :: exitCount, count
 
         center(:)      = 0.0_b8
         cellPolar(:,:) = 0.0_b8
 
         exitCount = 0
+        count = 0
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 exitCount = 0
@@ -94,6 +95,8 @@ contains
                         if ( r(2) > cellArray(n,2,1) .AND. r(2) <= cellArray(n,2,2) ) then
                             if ( r(3) > cellArray(n,3,1) .AND. r(3) <= cellArray(n,3,2) ) then
                                 cellCheck = 1
+                                count = count + 1
+                                ! write(*,*) i, prtclArray(i,1), prtclArray(i,2), prtclArray(i,3)
                             end if
                         end if
                     end if
@@ -116,7 +119,62 @@ contains
                 end if
             end if
         enddo
-    end subroutine polar3DMW
+        ! write(*,*) 'v1 count =',count
+    end subroutine polar3DMWv1
+
+
+    subroutine polar3DMWv2( cellArray, prtclArray, cellPolar )
+        implicit none
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: center(3), r(3), rmag
+        integer  :: i, j, n, cellCheck
+        integer  :: exitCount, count
+
+        center(:)      = 0.0_b8
+        cellPolar(:,:) = 0.0_b8
+
+        exitCount = 0
+        count = 0
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
+                do j = 1, 3
+                    r(j) = prtclArray(i,j)
+                enddo
+                ! check if particle is in a cell
+                do n = 1, cellTotal
+                    cellCheck = 0
+                    if ( r(1) > cellArray(n,1,1) .AND. r(1) < cellArray(n,1,2) ) then
+                        if ( r(2) > cellArray(n,2,1) .AND. r(2) < cellArray(n,2,2) ) then
+                            if ( r(3) > cellArray(n,3,1) .AND. r(3) < cellArray(n,3,2) ) then
+                                cellCheck = 1
+                                count = count + 1
+                                ! write(*,*) i, prtclArray(i,1), prtclArray(i,2), prtclArray(i,3)
+                            end if
+                        end if
+                    end if
+                    ! add q contribution and exit cell loop
+                    if ( cellCheck == 1 ) then
+                        do j = 1, 3
+                            r(j) = prtclArray(i,j) - ((cellArray(n,j,2) + cellArray(n,j,1))/2.0_b8)
+                        enddo
+                        rmag = sqrt( r(1)**2 + r(2)**2 + r(3)**2 )
+                        do j = 1, 3
+                            cellPolar(n,j) = cellPolar(n,j) + r(j) / rmag
+                        enddo
+                        exit
+                    end if
+                enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
+            end if
+        enddo
+        ! write(*,*) 'v2 count =',count
+    end subroutine polar3DMWv2
 
 
     ! calculate 2D MW cell polarization

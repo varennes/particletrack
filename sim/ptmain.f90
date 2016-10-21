@@ -15,7 +15,7 @@ real(b8), allocatable :: prtclArray(:,:), prtclLocation(:,:)
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
 real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
-real(b8), allocatable :: timePolar(:,:), timeCount(:)
+real(b8), allocatable :: timePolar(:,:)
 
 character(len=1024) :: filename
 
@@ -25,7 +25,8 @@ call cpu_time(tCPU0)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = ntItl
+ntTotal = 1
+
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
 write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
@@ -33,8 +34,9 @@ write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*)
 write(*,*) 'Average gradient:'
 write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
+write(*,*) 'Average concentration:'
+write(*,*) lReal * kReal / (dReal * syReal * szReal * 2.0_b8), '/ microns^3'
 write(*,*)
-
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -43,7 +45,6 @@ allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
 allocate( edgeList( cellTotal))
-allocate( timeCount( ntTotal))
 ! initialize concentration array
 do i = 1, 3
     cSize(i) = 2 * ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
@@ -75,6 +76,7 @@ do nGeo = 1, geoTotal
     ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
     ! call clusterCenter( cellArray, clstrCOM)
 
+    call wrtOutClusterSys( cellTotal, cellArray, rsim)
     ! let system reach equilibrium
     prtclArray(:,:) = 0.0_b8
     do nt = 1, ntItl
@@ -87,7 +89,6 @@ do nGeo = 1, geoTotal
     do run = 1, runTotal
         write(*,*) ' run', run
 
-        timeCount(:)     = 0.0_b8
         cellPolar(:,:)   = 0.0_b8
         timePolar(:,:)   = 0.0_b8
 
@@ -95,23 +96,14 @@ do nGeo = 1, geoTotal
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
             call prtclUpdate( p, rsim, prtclArray)
-            ! call prtclUpdateReflect( p, dr, rsim, prtclArray)
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
-            ! call prtclCellLocation( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
-            ! call prtclCount1( 1, cellArray(1,:,:), prtclArray, prtclLocation(1,:))
-            ! timeCount(nt) = prtclLocation(1,1)
-            ! write(100,*) prtclLocation(1,:)
-
-            ! do i = 1, cellTotal
-            !     call prtclCount1( 1, cellArray(i,:,:), prtclArray, prtclLocation(i,:))
-            ! enddo
-            ! do j = 1, 3
-            !     timePolar(j,nt) = sum(prtclLocation(:,j))
-            ! enddo
-
-            call polar3DMW( cellArray, prtclArray, cellPolar )
+            ! write(*,*) 'v2'
+            call polar3DMWv2( cellArray, prtclArray, cellPolar )
+            ! write(*,*) ' '
+            ! write(*,*) 'v1'
+            call polar3DMWv1( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
@@ -127,16 +119,8 @@ do nGeo = 1, geoTotal
         ! sample concetration over ensemble - uncomment following 2 lines
         ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
         ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
-        ! do i = 1, cSize(1)
-        !     runCx(run,i) = concentration( i, 10, 10)
-        ! enddo
 
-        ! do j = 1, 3
-        !     cellPolar(1,j) = sum( timePolar(j,:)) / float(ntTotal)
-        ! enddo
-        ! call wrtPlrTotal( run, cellPolar)
         call wrtPlrTime( run, ntTotal, timePolar)
-        ! write(101,*) sum(timeCount) / float(ntTotal)
     enddo
 
     ! write concentration x projection
@@ -153,26 +137,14 @@ write(*,*) ' Run Total =', runTotal
 write(*,*) 'Cell Total =', cellTotal
 write(*,*) 'prtclTotal =', prtclTotal
 write(*,*) '   ntTotal =', ntTotal, 'ntItl =', ntItl
-! write(*,*)
-! do i = 1, 3
-!     write(*,*) i, 'dr =', dr(i), 'rsim =', rsim(i,:)
-! enddo
-! do i = 1, cellTotal
-!     write(*,*) '  cell location', i
-!     do j = 1, 3
-!         write(*,*) j, cellArray(i,j,1), cellArray(i,j,2)
-!     enddo
-! enddo
 write(*,*)
 write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
-
 
 deallocate( prtclLocation)
 deallocate( prtclArray)
 deallocate( cellArray)
 deallocate( cellPolar)
 deallocate( timePolar)
-deallocate( timeCount)
 
 contains
 
