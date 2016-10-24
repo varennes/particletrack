@@ -16,6 +16,7 @@ real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
 real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
 real(b8), allocatable :: timePolar(:,:)
+real(b8), allocatable :: cellCenter(:,:)
 
 character(len=1024) :: filename
 
@@ -25,7 +26,7 @@ call cpu_time(tCPU0)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = 1
+ntTotal = ntItl
 
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
@@ -45,6 +46,7 @@ allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
 allocate( edgeList( cellTotal))
+allocate( cellCenter( cellTotal, 3) )
 ! initialize concentration array
 do i = 1, 3
     cSize(i) = 2 * ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
@@ -70,6 +72,8 @@ do nGeo = 1, geoTotal
     ! call itl3DRandom( cellTotal, cellArray, rsim)
     call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
+
+    call getCellCenter( cellArray, cellCenter)
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
     ! edgeList = 0
@@ -99,11 +103,12 @@ do nGeo = 1, geoTotal
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
+            call polarSphereMW( cellCenter, prtclArray, cellPolar )
             ! write(*,*) 'v2'
-            call polar3DMWv2( cellArray, prtclArray, cellPolar )
+            ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
             ! write(*,*) ' '
             ! write(*,*) 'v1'
-            call polar3DMWv1( cellArray, prtclArray, cellPolar )
+            ! call polar3DMWv1( cellArray, prtclArray, cellPolar )
             ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
             ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
@@ -145,6 +150,7 @@ deallocate( prtclArray)
 deallocate( cellArray)
 deallocate( cellPolar)
 deallocate( timePolar)
+deallocate( cellCenter)
 
 contains
 

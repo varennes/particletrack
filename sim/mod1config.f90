@@ -484,4 +484,20 @@ contains
         write(199,*)
     end subroutine wrtOutClusterSys
 
+
+    ! calculate the centroid of each cell
+    subroutine getCellCenter( cellArray, cellCenter)
+        implicit none
+        real(b8), intent(in)  :: cellArray(:,:,:)
+        real(b8), intent(out) :: cellCenter(:,:)
+        integer :: i, j
+
+        cellCenter = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 3
+                cellCenter(i,j) = (cellArray(i,j,1) + cellArray(i,j,2)) / 2.0_b8
+            enddo
+        enddo
+    end subroutine getCellCenter
+
 end module
