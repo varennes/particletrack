@@ -10,7 +10,7 @@ integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax, tCPU0, tCPU1
 real(b8) :: dtReal, p, q, r
 real(b8) :: dr(3), rsim(3,2), clstrCOM(3)
-real(b8), allocatable :: prtclArray(:,:), prtclLocation(:,:)
+real(b8), allocatable :: prtclArray(:,:), prtclItl(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
@@ -41,7 +41,7 @@ write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
-allocate( prtclLocation( cellTotal, 3))
+allocate( prtclItl( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
@@ -58,6 +58,16 @@ allocate( runCx(runTotal,cSize(1)))
 
 call init_random_seed()
 
+! initialize particles and let system reach equilibrium
+prtclArray(:,:) = 0.0_b8
+prtclItl(:,:)   = 0.0_b8
+do nt = 1, ntItl
+    ! move particles
+    call prtclUpdate( p, rsim, prtclItl)
+    ! add flux of particles
+    call prtclFlux( q, rsim, prtclItl, overflow)
+enddo
+
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
     ! open output data file
@@ -67,12 +77,13 @@ do nGeo = 1, geoTotal
     ! initialize arrays
     concentration = 0.0_b8
     runCx = 0.0_b8
+    prtclArray = prtclItl
+
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
     ! call itl3DRandom( cellTotal, cellArray, rsim)
     call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
-
     call getCellCenter( cellArray, cellCenter)
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
@@ -81,14 +92,6 @@ do nGeo = 1, geoTotal
     ! call clusterCenter( cellArray, clstrCOM)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)
-    ! let system reach equilibrium
-    prtclArray(:,:) = 0.0_b8
-    do nt = 1, ntItl
-        ! move particles
-        call prtclUpdate( p, rsim, prtclArray)
-        ! add flux of particles
-        call prtclFlux( q, rsim, prtclArray, overflow)
-    enddo
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -145,8 +148,8 @@ write(*,*) '   ntTotal =', ntTotal, 'ntItl =', ntItl
 write(*,*)
 write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
 
-deallocate( prtclLocation)
 deallocate( prtclArray)
+deallocate( prtclItl)
 deallocate( cellArray)
 deallocate( cellPolar)
 deallocate( timePolar)
