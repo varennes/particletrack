@@ -168,7 +168,7 @@ contains
         real(b8), intent(in)  :: rsim(:,:)
         real(b8), allocatable :: dList(:), dTest(:)
         integer,  allocatable :: nnList(:,:)
-        real(b8) :: a, hCell, nnd, nndmax, x0, y0
+        real(b8) :: a, nnd, nndmax, x0, y0
         integer :: center( cellTotal, 3), test(2)
         integer :: i, itest, inn, j, k, k1, k2, kmax, n, centerCheck
 
@@ -176,13 +176,11 @@ contains
         allocate(  dTest(200))
         allocate( nnList(200,3))
         cellArray(:,:,:) = 0.0_b8
-        ! set cell height
-        hCell = 0.10_b8
         ! set center and cellArray for cell 1
         x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
         y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
-        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hCell
-        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hCell
+        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hReal
+        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hReal
         do i = 1, 2
             cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rReal
             cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rReal

@@ -181,10 +181,9 @@ contains
         implicit none
         real(b8), intent(in)  :: cellCenter(:,:), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: center(3), r(3), rmag, dr
+        real(b8) :: r(3), dr
         integer  :: i, j, n, exitCount
 
-        center(:)      = 0.0_b8
         cellPolar(:,:) = 0.0_b8
 
         exitCount = 0
@@ -196,12 +195,10 @@ contains
                         r(j) = prtclArray(i,j) - cellCenter(n,j)
                     enddo
                     dr = sqrt( sum(r*r))
-                    ! write(*,*) 'dr =', dr, 'i',i
                     if ( dr < rReal ) then
                         ! add q contribution and exit cell loop
-                        rmag = sqrt( r(1)**2 + r(2)**2 + r(3)**2 )
                         do j = 1, 3
-                            cellPolar(n,j) = cellPolar(n,j) + r(j) / rmag
+                            cellPolar(n,j) = cellPolar(n,j) + r(j) / dr
                         enddo
                         exit
                     end if
@@ -277,6 +274,110 @@ contains
             cellPolar(i,:) = nCell(i) * rCell(i,:)
         enddo
     end subroutine polarSphereEC
+
+
+    ! calculate EC cell polarization, individual polarization vectors are NOT adaptive
+    subroutine polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+        implicit none
+        integer,  intent(in)  :: edgeList(:)
+        real(b8), intent(in)  :: cellCenter(:,:), clstrCOM(3), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: nCell(cellTotal), rCell(cellTotal,2), r(2), dr
+        integer :: i, j, n
+        integer :: exitCount
+
+        cellPolar(:,:) = 0.0_b8
+        if ( cellTotal == 1 ) then
+            return
+        end if
+        rCell = 0.0_b8
+        nCell = 0.0_b8
+        do i = 1, cellTotal
+            if ( edgeList(i) == 1 ) then
+                do j = 1, 2
+                    rCell(i,j) = cellCenter(i,j) - clstrCOM(j)
+                enddo
+                rCell(i,:) = rCell(i,:) / sqrt( rCell(i,1)**2 + rCell(i,2)**2 )
+            end if
+        enddo
+
+        exitCount = 0
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) > hReal ) then
+                    exit
+                end if
+                do j = 1, 2
+                    r(j) = prtclArray(i,j)
+                enddo
+                ! check if particle is in a cell on the edge
+                do n = 1, cellTotal
+                    if ( edgeList(n) == 0 ) then
+                        cycle
+                    end if
+                    do j = 1, 2
+                        r(j) = prtclArray(i,j) - cellCenter(n,j)
+                    enddo
+                    dr = sqrt( sum(r*r))
+                    if ( dr < rReal ) then
+                        nCell(n) = nCell(n) + 1.0_b8
+                    end if
+                enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
+            end if
+        enddo
+
+        do i = 1, cellTotal
+            if ( edgeList(i) == 0 ) then
+                cycle
+            end if
+            cellPolar(i,:) = nCell(i) * rCell(i,:)
+        enddo
+    end subroutine polarDiscEC
+
+
+    subroutine polarDiscMW( cellCenter, prtclArray, cellPolar )
+        implicit none
+        real(b8), intent(in)  :: cellCenter(:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: r(2), dr
+        integer  :: i, j, n, exitCount
+
+        cellPolar(:,:) = 0.0_b8
+
+        exitCount = 0
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) > hReal ) then
+                    exit
+                end if
+                do n = 1, cellTotal
+                    do j = 1, 2
+                        r(j) = prtclArray(i,j) - cellCenter(n,j)
+                    enddo
+                    dr = sqrt( sum(r*r))
+                    if ( dr < rReal ) then
+                        ! add q contribution and exit cell loop
+                        do j = 1, 2
+                            cellPolar(n,j) = cellPolar(n,j) + r(j) / dr
+                        enddo
+                        exit
+                    end if
+                enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
+            end if
+        enddo
+    end subroutine polarDiscMW
 
 
     ! calculate 2D MW cell polarization
