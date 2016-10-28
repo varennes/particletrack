@@ -6,7 +6,7 @@ use parameters
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
 integer,  parameter ::   runTotal = 1      ! total number of runs
 integer,  parameter ::  cellTotal = 1      ! total number of cells in system
-integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
+integer,  parameter :: prtclTotal = 1000   ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
@@ -411,6 +411,58 @@ contains
         deallocate( dr )
         deallocate( center )
     end subroutine clusterEdgeList
+
+
+    ! make a list of cells which are on the perimeter of 2D cluster
+    subroutine EdgeList2D( cellArray, rsim, edgeList)
+        implicit none
+        integer,  intent(out) :: edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:), rsim(:,:)
+        real(b8), allocatable :: center(:,:), dr(:,:)
+        real(b8) :: dcell
+        integer  :: i, j, k, n1, n2, check
+
+        allocate( dr(4,2) )
+        allocate( center(cellTotal,2) )
+        ! set dr
+        dr(:,:) = 0.0_b8
+        do i = 1, 2
+            dr(i,i) = 2.0 * rReal
+        enddo
+        do i = 3, 4
+            dr(i,i-2) = -2.0 * rReal
+        enddo
+        ! set cell center from cellArray
+        center(:,:)      = 0.0_b8
+        do i = 1, cellTotal
+            do j = 1, 2
+                center(i,j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / 2.0_b8
+            enddo
+        enddo
+        edgeList(:) = 1
+        do n1 = 1, cellTotal
+            check = 0
+            do n2 = 1, cellTotal
+                if ( n1 == n2 ) then
+                    cycle
+                end if
+                dcell = 0.0_b8
+                do j = 1, 2
+                    dcell = dcell + (center(n1,j) - center(n2,j))**2
+                enddo
+                dcell = dsqrt(dcell)
+                if ( dcell >= 2.0*rReal-0.000001 .AND. dcell <= 2.0*rReal+0.000001 ) then
+                    check = check + 1
+                end if
+                if ( check > 3 ) then
+                    edgeList(n1) = 0
+                    exit
+                end if
+            enddo
+        enddo
+        deallocate( dr )
+        deallocate( center )
+    end subroutine EdgeList2D
 
 
     ! calculate center of mass of cell cluster, neccasary for EC polarization

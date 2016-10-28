@@ -306,24 +306,23 @@ contains
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 exitCount = 0
                 if ( abs(cellCenter(1,3)-prtclArray(i,3)) > hReal ) then
-                    exit
-                end if
-                do j = 1, 2
-                    r(j) = prtclArray(i,j)
-                enddo
-                ! check if particle is in a cell on the edge
-                do n = 1, cellTotal
-                    if ( edgeList(n) == 0 ) then
-                        cycle
-                    end if
                     do j = 1, 2
-                        r(j) = prtclArray(i,j) - cellCenter(n,j)
+                        r(j) = prtclArray(i,j)
                     enddo
-                    dr = sqrt( sum(r*r))
-                    if ( dr < rReal ) then
-                        nCell(n) = nCell(n) + 1.0_b8
-                    end if
-                enddo
+                    ! check if particle is in a cell on the edge
+                    do n = 1, cellTotal
+                        if ( edgeList(n) == 0 ) then
+                            cycle
+                        end if
+                        do j = 1, 2
+                            r(j) = prtclArray(i,j) - cellCenter(n,j)
+                        enddo
+                        dr = sqrt( sum(r*r))
+                        if ( dr < rReal ) then
+                            nCell(n) = nCell(n) + 1.0_b8
+                        end if
+                    enddo
+                end if
             else
                 exitCount = exitCount + 1
                 if ( exitCount > (prtclTotal/10) ) then
@@ -354,22 +353,21 @@ contains
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 exitCount = 0
-                if ( abs(cellCenter(1,3)-prtclArray(i,3)) > hReal ) then
-                    exit
-                end if
-                do n = 1, cellTotal
-                    do j = 1, 2
-                        r(j) = prtclArray(i,j) - cellCenter(n,j)
-                    enddo
-                    dr = sqrt( sum(r*r))
-                    if ( dr < rReal ) then
-                        ! add q contribution and exit cell loop
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) < hReal ) then
+                    do n = 1, cellTotal
                         do j = 1, 2
-                            cellPolar(n,j) = cellPolar(n,j) + r(j) / dr
+                            r(j) = prtclArray(i,j) - cellCenter(n,j)
                         enddo
-                        exit
-                    end if
-                enddo
+                        dr = sqrt( sum(r*r))
+                        if ( dr < rReal ) then
+                            ! add q contribution and exit cell loop
+                            do j = 1, 2
+                                cellPolar(n,j) = cellPolar(n,j) + r(j) / dr
+                            enddo
+                            exit
+                        end if
+                    enddo
+                end if
             else
                 exitCount = exitCount + 1
                 if ( exitCount > (prtclTotal/10) ) then
