@@ -214,7 +214,7 @@ contains
 
 
     ! calculate EC cell polarization, individual polarization vectors are NOT adaptive
-    subroutine polarsphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+    subroutine polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
         implicit none
         integer,  intent(in)  :: edgeList(:)
         real(b8), intent(in)  :: cellCenter(:,:), clstrCOM(3), prtclArray(:,:)
@@ -305,7 +305,7 @@ contains
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 exitCount = 0
-                if ( abs(cellCenter(1,3)-prtclArray(i,3)) > hReal ) then
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) < (hReal/2.0_b8) ) then
                     do j = 1, 2
                         r(j) = prtclArray(i,j)
                     enddo
@@ -335,7 +335,8 @@ contains
             if ( edgeList(i) == 0 ) then
                 cycle
             end if
-            cellPolar(i,:) = nCell(i) * rCell(i,:)
+            cellPolar(i,1) = nCell(i) * rCell(i,1)
+            cellPolar(i,2) = nCell(i) * rCell(i,2)
         enddo
     end subroutine polarDiscEC
 
@@ -353,7 +354,7 @@ contains
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 exitCount = 0
-                if ( abs(cellCenter(1,3)-prtclArray(i,3)) < hReal ) then
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) < (hReal/2.0_b8) ) then
                     do n = 1, cellTotal
                         do j = 1, 2
                             r(j) = prtclArray(i,j) - cellCenter(n,j)
@@ -379,44 +380,118 @@ contains
 
 
     ! calculate 2D MW cell polarization
-    subroutine cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+    subroutine polar2DMW( cellArray, prtclArray, cellPolar)
         implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal
         real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
         real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: center(3), check, q(3), qtot(3)
-        integer :: i, j, k
+        real(b8) :: r(3), rmag
+        integer  :: i, j, n, cellCheck
+        integer  :: exitCount, count
+
         cellPolar(:,:) = 0.0_b8
-        qtot = 0.0_b8
-        do i = 1, cellTotal
-            do j = 1, 3
-                center(j) = cellArray(i,j,1) + (cellArray(i,j,2) - cellArray(i,j,1)) / (2.0_b8)
-            enddo
-            qtot = 0.0_b8
-            do j = 1, prtclTotal
-                q = 0.0_b8
-                if ( prtclArray(j,4) == 1.0_b8 ) then
-                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                    if ( check < 0.0 ) then
-                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                        if ( check < 0.0 ) then
-                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                            if ( check < 0.0 ) then
-                                do k = 1, 2
-                                    q(k) = prtclArray(j,k) - center(k)
-                                enddo
-                                q = q / sqrt(dot_product(q,q))
-                                ! q = q
-                            endif
-                        endif
-                    endif
-                endif
-                qtot = qtot + q
-            enddo
-            ! cellPolar(i,:) = qtot / sqrt(dot_product(qtot,qtot))
-            cellPolar(i,:) = qtot
+
+        exitCount = 0
+        count = 0
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
+                do j = 1, 3
+                    r(j) = prtclArray(i,j)
+                enddo
+                ! check if particle is in a cell
+                do n = 1, cellTotal
+                    cellCheck = 0
+                    if ( r(1) > cellArray(n,1,1) .AND. r(1) < cellArray(n,1,2) ) then
+                        if ( r(2) > cellArray(n,2,1) .AND. r(2) < cellArray(n,2,2) ) then
+                            if ( r(3) > cellArray(n,3,1) .AND. r(3) < cellArray(n,3,2) ) then
+                                cellCheck = 1
+                                count = count + 1
+                            end if
+                        end if
+                    end if
+                    ! add q contribution and exit cell loop
+                    if ( cellCheck == 1 ) then
+                        do j = 1, 2
+                            r(j) = prtclArray(i,j) - ((cellArray(n,j,2) + cellArray(n,j,1))/2.0_b8)
+                        enddo
+                        rmag = sqrt( r(1)**2 + r(2)**2 )
+                        do j = 1, 2
+                            cellPolar(n,j) = cellPolar(n,j) + r(j) / rmag
+                        enddo
+                        exit
+                    end if
+                enddo
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
+            end if
         enddo
-    end subroutine cellpolar2DMW
+    end subroutine polar2DMW
+
+
+    ! 2D EC cell polarization, cube cells, individual polarization vectors are NOT adaptive
+    subroutine polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
+        implicit none
+        integer,  intent(in)  :: edgeList(:)
+        real(b8), intent(in)  :: cellCenter(:,:), clstrCOM(3), cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellPolar(:,:)
+        real(b8) :: nCell(cellTotal), rCell(cellTotal,2), r(2), dr
+        integer :: i, j, n
+        integer :: exitCount
+
+        cellPolar(:,:) = 0.0_b8
+        if ( cellTotal == 1 ) then
+            return
+        end if
+        rCell = 0.0_b8
+        nCell = 0.0_b8
+        do i = 1, cellTotal
+            if ( edgeList(i) == 1 ) then
+                do j = 1, 2
+                    rCell(i,j) = cellCenter(i,j) - clstrCOM(j)
+                enddo
+                rCell(i,:) = rCell(i,:) / sqrt( rCell(i,1)**2 + rCell(i,2)**2 )
+            end if
+        enddo
+
+        exitCount = 0
+        do i = 1, prtclTotal
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                exitCount = 0
+                if ( abs(cellCenter(1,3)-prtclArray(i,3)) < (hReal/2.0_b8) ) then
+                    ! check if particle is in a cell on the edge
+                    do n = 1, cellTotal
+                        if ( edgeList(n) == 0 ) then
+                            cycle
+                        end if
+                        do j = 1, 2
+                            r(j) = prtclArray(i,j)
+                        enddo
+                        if ( r(1) > cellArray(n,1,1) .AND. r(1) <= cellArray(n,1,2) ) then
+                            if ( r(2) > cellArray(n,2,1) .AND. r(2) <= cellArray(n,2,2) ) then
+                                nCell(n) = nCell(n) + 1.0_b8
+                            end if
+                        end if
+                    enddo
+                end if
+            else
+                exitCount = exitCount + 1
+                if ( exitCount > (prtclTotal/10) ) then
+                    exit
+                end if
+            end if
+        enddo
+
+        do i = 1, cellTotal
+            if ( edgeList(i) == 0 ) then
+                cycle
+            end if
+            cellPolar(i,1) = nCell(i) * rCell(i,1)
+            cellPolar(i,2) = nCell(i) * rCell(i,2)
+        enddo
+    end subroutine polar2DEC
 
 
     ! output total cluster polarization

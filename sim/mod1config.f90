@@ -179,8 +179,8 @@ contains
         ! set center and cellArray for cell 1
         x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8
         y0 = (rsim(2,2) - rsim(2,1)) / 2.0_b8
-        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - hReal
-        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + hReal
+        cellArray(1,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - (hReal / 2.0_b8)
+        cellArray(1,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + (hReal / 2.0_b8)
         do i = 1, 2
             cellArray(1,i,1) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 - rReal
             cellArray(1,i,2) = (rsim(i,2) - rsim(i,1)) / 2.0_b8 + rReal
@@ -264,6 +264,100 @@ contains
         deallocate(  dTest)
         deallocate( nnList)
     end subroutine itl2DClusterNN
+
+
+    ! initialize positions of cells to form a cluster
+    ! cells are randomly placed along all possible sides of the cluster
+    subroutine itl2DRandom( cellTotal, cellArray, rsim)
+        implicit none
+        integer,  intent(in)  :: cellTotal
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8), intent(in)  :: rsim(:,:)
+        real(b8), allocatable :: center(:,:), dr(:,:), test(:)
+        real(b8) :: r
+        integer :: cellCheck, i, ii, j, k, n
+
+        allocate( dr(4,2) )
+        allocate( test(2) )
+        allocate( center(cellTotal,2) )
+        center(:,:)      = 0.0_b8
+        cellArray(:,:,:) = 0.0_b8
+        ! set dr
+        dr(:,:) = 0.0_b8
+        do i = 1, 2
+            dr(i,i) = 2.0 * rReal
+        enddo
+        do i = 3, 4
+            dr(i,i-2) = -2.0 * rReal
+        enddo
+        ! set center and cellArray for cell 1
+        do i = 1, 2
+            center(1,i) = (rsim(i,2) - rsim(i,1)) / 2.0_b8
+        enddo
+        do i = 1, 2
+            cellArray(1,i,1) = center(1,i) - rReal
+            cellArray(1,i,2) = center(1,i) + rReal
+        enddo
+        do i = 1, cellTotal
+            cellArray(i,3,1) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) - (hReal / 2.0_b8)
+            cellArray(i,3,2) = ((rsim(3,2) - rsim(3,1)) / 2.0_b8) + (hReal / 2.0_b8)
+        enddo
+        if ( cellTotal == 1 ) then
+            return
+        elseif ( cellTotal == 2 ) then
+            center(2,1) = center(1,1) + (2.0 * rReal)
+            center(2,2) = center(1,2)
+            do i = 1, 2
+                cellArray(2,i,1) = center(2,i) - rReal
+                cellArray(2,i,2) = center(2,i) + rReal
+            enddo
+            return
+        end if
+
+        ! set center and cellArray for cells 2 to cellTotal
+        n = 1
+        i = 2
+        do while ( i <= cellTotal .AND. n <= cellTotal )
+            call random_number(r)
+            j = 1 + floor( r * 4.0 )
+            do k = 1, 4
+                ! set test location for cell center i
+                test(1) = center(n,1) + dr(j,1)
+                test(2) = center(n,2) + dr(j,2)
+                cellCheck = 0
+                do ii = 1, i-1
+                    ! check that no other cell center occupy test location
+                    if ( center(ii,1) == test(1) .AND. center(ii,2) == test(2) ) then
+                        cellCheck = 1
+                    end if
+                enddo
+                if ( cellCheck == 0 ) then
+                    center(i,:) = test
+                    do ii = 1, 2
+                        cellArray(i,ii,1) = test(ii) - rReal
+                        cellArray(i,ii,2) = test(ii) + rReal
+                    enddo
+                    i = i + 1
+                end if
+                if ( i > cellTotal ) then
+                    exit
+                else
+                    j = j + 1
+                    if( j > 4 )then
+                        j = 1
+                    endif
+                endif
+            enddo
+            n = n + 1
+        enddo
+        if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
+            write(*,*) '           INITIALIZATION ERROR             '
+            write(*,*) 'ERROR: SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
+        end if
+        deallocate( dr )
+        deallocate( test )
+        deallocate( center )
+    end subroutine itl2DRandom
 
 
     ! initialize positions of cells to form a cluster

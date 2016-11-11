@@ -83,13 +83,14 @@ do nGeo = 1, geoTotal
     cellArray(:,:,:) = 0.0_b8
     ! call itl3DRandom( cellTotal, cellArray, rsim)
     ! call itl3DClusterNN( cellArray, rsim)
-    call itl2DClusterNN( cellArray, rsim)
+    ! call itl2DClusterNN( cellArray, rsim)
+    call itl2DRandom( cellTotal, cellArray, rsim)
     call getCellCenter( cellArray, cellCenter)
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
     edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    call EdgeList2D( cellArray, rsim, edgeList)
+    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    ! call EdgeList2D( cellArray, rsim, edgeList)
     call clusterCenter( cellArray, clstrCOM)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)
@@ -108,10 +109,14 @@ do nGeo = 1, geoTotal
             call prtclFlux( q, rsim, prtclArray, overflow)
 
             ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
-            ! call polarsphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+            ! call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+
             ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
             call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-            ! call cellpolar2DMW( cellTotal, prtclTotal, cellArray, prtclArray, cellPolar)
+
+            ! call polar2DMW( cellArray, prtclArray, cellPolar)
+            ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
+
             ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
             ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
