@@ -48,10 +48,10 @@ contains
         integer :: center( cellTotal, 3), test(3)
         integer :: i, itest, inn, j, k, k1, k2, k3, kmax, n, centerCheck
 
-        allocate(  dList(400))
-        allocate(  dTest(400))
-        allocate( nnList(400,3))
-        allocate( nnTest(400,3))
+        allocate(  dList(800))
+        allocate(  dTest(800))
+        allocate( nnList(800,3))
+        allocate( nnTest(800,3))
         cellArray(:,:,:) = 0.0_b8
         ! set center and cellArray for cell 1
         x0 = (rsim(1,2) - rsim(1,1)) / 2.0_b8

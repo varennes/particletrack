@@ -14,8 +14,8 @@ real(b8), allocatable :: prtclArray(:,:), prtclItl(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
-real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
-real(b8), allocatable :: timePolar(:,:)
+real(b8), allocatable :: cellArray(:,:,:), cellCount(:), concentration(:,:,:), runCx(:,:)
+real(b8), allocatable :: timeCount(:)
 real(b8), allocatable :: cellCenter(:,:)
 
 character(len=1024) :: filename
@@ -33,26 +33,26 @@ write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
 write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*)
-write(*,*) 'Average gradient:'
-write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
-write(*,*) 'Average concentration:'
-write(*,*) lReal * kReal / (dReal * syReal * szReal * 2.0_b8), '/ microns^3'
-write(*,*)
+! write(*,*) 'Average gradient:'
+! write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
+! write(*,*) 'Average concentration:'
+! write(*,*) lReal * kReal / (dReal * syReal * szReal * 2.0_b8), '/ microns^3'
+! write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
 allocate( prtclItl( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
-allocate( cellPolar( cellTotal, 3))
-allocate( timePolar( 3, ntTotal))
+allocate( cellCount( cellTotal))
+allocate( timeCount( ntTotal))
 allocate( edgeList( cellTotal))
 allocate( cellCenter( cellTotal, 3) )
 ! initialize concentration array
 do i = 1, 3
     cSize(i) = 2 * ceiling( (rsim(i,2) - rsim(i,1)) / (10.0*dr(i)))
 enddo
-write(*,*) '  Concentration grid size:', cSize(:)
-write(*,*) '  '
+! write(*,*) '  Concentration grid size:', cSize(:)
+! write(*,*) '  '
 allocate( concentration( cSize(1), cSize(2), cSize(3)))
 allocate( runCx(runTotal,cSize(1)))
 
@@ -61,11 +61,16 @@ call init_random_seed()
 ! initialize particles and let system reach equilibrium
 prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
+do i = 1, prtclTotal
+    prtclItl(i,4) = 1.0_b8
+    do j = 1, 3
+        call random_number(r)
+        prtclItl(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
+    enddo
+enddo
 do nt = 1, ntItl
     ! move particles
-    call prtclUpdate( p, rsim, prtclItl)
-    ! add flux of particles
-    call prtclFlux( q, rsim, prtclItl, overflow)
+    call prtclUpdateAllPeriodic( p, rsim, prtclItl)
 enddo
 
 do nGeo = 1, geoTotal
@@ -82,62 +87,43 @@ do nGeo = 1, geoTotal
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
     ! call itl3DRandom( cellTotal, cellArray, rsim)
-    ! call itl3DClusterNN( cellArray, rsim)
-    call itl2DClusterNN( cellArray, rsim)
+    call itl3DClusterNN( cellArray, rsim)
+    ! call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
     call getCellCenter( cellArray, cellCenter)
-
-    ! call clusterEdgeList & clusterCenter if simulating EC polarization
-    edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    call EdgeList2D( cellArray, rsim, edgeList)
-    call clusterCenter( cellArray, clstrCOM)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     do run = 1, runTotal
         write(*,*) ' run', run
 
-        cellPolar(:,:)   = 0.0_b8
-        timePolar(:,:)   = 0.0_b8
+        cellCount(:) = 0.0_b8
+        timeCount(:) = 0.0_b8
 
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( p, rsim, prtclArray)
-            ! add flux of particles
-            call prtclFlux( q, rsim, prtclArray, overflow)
+            call prtclUpdateAllPeriodic( p, rsim, prtclArray)
 
-            ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
-            ! call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+            ! count particles in each cell
+            call prtclCount( cellArray, prtclArray, cellCount)
 
-            ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
-            call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! call polar2DMW( cellArray, prtclArray, cellPolar)
-            ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
-
-            ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
-            ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! store time series of total cluster polarization
-            do j = 1, 3
-                timePolar(j,nt) = sum(cellPolar(:,j))
-            enddo
+            ! store time series of total cluster count
+            timeCount(nt) = sum(cellCount(:))
 
             ! sample concentration over time - uncomment following 2 lines
             ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
             ! call concentrationXprj( cSize(1), concentration, runCx(nt,:))
         enddo
         ! sample concetration over ensemble - uncomment following 2 lines
-        ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        call concentrationXprj( cSize(1), concentration, runCx(run,:))
 
-        call wrtPlrTime( run, ntTotal, timePolar)
+        call wrtCountTime( run, ntTotal, timeCount)
     enddo
 
     ! write concentration x projection
-    ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
+    call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
     close(12)
 enddo
@@ -156,8 +142,8 @@ write(*,*) 'CPU Run Time (min)', (tCPU1 - tCPU0) / 60.0
 deallocate( prtclArray)
 deallocate( prtclItl)
 deallocate( cellArray)
-deallocate( cellPolar)
-deallocate( timePolar)
+deallocate( cellCount)
+deallocate( timeCount)
 deallocate( cellCenter)
 
 contains
@@ -238,37 +224,6 @@ contains
             write(300,*) ''
         enddo
     end subroutine wrtConcentrationX
-
-
-    ! count the number of particels within cells volume
-    subroutine cellCount( cellTotal, prtclTotal, cellArray, prtclArray, countArray)
-        implicit none
-        integer,  intent(in)  :: cellTotal, prtclTotal
-        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
-        integer,  intent(out) :: countArray(:)
-        integer  :: i, j
-        real(b8) :: check
-        do i = 1, cellTotal
-            countArray(i) = 0
-            do j = 1, prtclTotal
-                if ( prtclArray(j,4) == 1.0_b8 ) then
-                    check = (prtclArray(j,1)-cellArray(i,1,1))*(prtclArray(j,1)-cellArray(i,1,2))
-                    if ( check < 0.0 ) then
-                        ! write(*,*) 'passed x-check:', prtclArray(j,1:3)
-                        check = (prtclArray(j,2)-cellArray(i,2,1))*(prtclArray(j,2)-cellArray(i,2,2))
-                        if ( check < 0.0 ) then
-                            ! write(*,*) 'passed y-check:', prtclArray(j,1:3)
-                            check = (prtclArray(j,3)-cellArray(i,3,1))*(prtclArray(j,3)-cellArray(i,3,2))
-                            if ( check < 0.0 ) then
-                                ! write(*,*) 'passed z-check:', prtclArray(j,1:3)
-                                countArray(i) = countArray(i) + 1
-                            endif
-                        endif
-                    endif
-                endif
-            enddo
-        enddo
-    end subroutine cellCount
 
 end program
 

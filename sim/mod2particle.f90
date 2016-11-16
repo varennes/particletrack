@@ -104,82 +104,92 @@ contains
     end subroutine prtclUpdate
 
 
-    ! calculate the average location of the particles within a cell
-    ! relative = 1 indicates that the locations should be realtive to the cell center
-    subroutine prtclCount1( relative, cell, prtclArray, prtclLocation)
+    ! move particles and check boundary conditions
+    ! all boundaries periodic
+    subroutine prtclUpdateAllPeriodic( p, rsim, prtclArray)
         implicit none
-        integer,  intent(in)  :: relative
-        real(b8), intent(in)  :: cell(:,:), prtclArray(:,:)
-        real(b8), intent(out) :: prtclLocation(:)
-        real(b8) :: r(3), rmag
-        integer  :: i, j, count
+        real(b8), intent(in)    :: p, rsim(:,:)
+        real(b8), intent(inout) :: prtclArray(:,:)
+        integer  :: i, j, dim
+        real(b8) :: r
 
-        count = 0
-        prtclLocation(:) = 0.0_b8
+        do i = 1, prtclTotal
+            ! check whether array index corresponds to a particle
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! with probability 'p', move a distance dr(j) in random direction
+                call random_number(r)
+                if ( r <= p ) then
+                    ! check what direction the particle moves
+                    if ( r <= p / 6.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) + bReal
+                    elseif ( r <= p / 3.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) - bReal
+                    elseif ( r <= p / 2.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) + bReal
+                    elseif ( r <= 2.0_b8 * p / 3.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) - bReal
+                    elseif ( r <= 5.0_b8 * p / 6.0_b8 ) then
+                        prtclArray(i,3) = prtclArray(i,3) + bReal
+                    elseif ( r <= p ) then
+                        prtclArray(i,3) = prtclArray(i,3) - bReal
+                    end if
+
+                    ! check boundary conditions: all periodic
+                    do j = 1, 3
+                        if ( prtclArray(i,j) > rsim(j,2) ) then
+                            prtclArray(i,j) = rsim(j,1) + ( prtclArray(i,j) - rsim(j,2) )
+                        elseif ( prtclArray(i,j) < rsim(j,1) ) then
+                            prtclArray(i,j) = rsim(j,2) - ( rsim(j,1) - prtclArray(i,j) )
+                        end if
+                    enddo
+                endif
+            endif
+        enddo
+    end subroutine prtclUpdateAllPeriodic
+
+
+    ! count number of particles in each cell
+    subroutine prtclCount( cellArray, prtclArray, cellCount)
+        implicit none
+        real(b8), intent(in)  :: cellArray(:,:,:), prtclArray(:,:)
+        real(b8), intent(out) :: cellCount(:)
+        real(b8) :: r(3)
+        integer  :: i, j, n
+
+        cellCount(:) = 0.0_b8
         do i = 1, prtclTotal
             if ( prtclArray(i,4) == 1.0_b8 ) then
                 do j = 1, 3
-                    r(j) = prtclArray(i,j) - ((cell(j,2) + cell(j,1))/2.0_b8)
+                    r(j) = prtclArray(i,j)
                 enddo
-                if ( r(1) > -rReal .AND. r(1) <= rReal ) then
-                    if ( r(2) > -rReal .AND. r(2) <= rReal ) then
-                        if ( r(3) > -rReal .AND. r(3) <= rReal ) then
-                            count = count + 1
-                            rmag = sqrt( r(1)**2 + r(2)**2 + r(3)**2 )
-                            do j = 1, 3
-                                prtclLocation(j) = prtclLocation(j) + r(j) / rmag
-                                ! if ( relative == 1 ) then
-                                !     prtclLocation(j) = prtclLocation(j) - ((cell(j,2) + cell(j,1))/2.0_b8)
-                                ! end if
-                            enddo
+                do n = 1, cellTotal
+                    if ( r(1) > cellArray(n,1,1) .AND. r(1) <= cellArray(n,1,2) ) then
+                        if ( r(2) > cellArray(n,2,1) .AND. r(2) <= cellArray(n,2,2) ) then
+                            if ( r(3) > cellArray(n,3,1) .AND. r(3) <= cellArray(n,3,2) ) then
+                                cellCount(n) = cellCount(n) + 1.0_b8
+                            end if
                         end if
                     end if
-                end if
+                enddo
             end if
         enddo
-        ! do j = 1, 3
-        !     prtclLocation(j) = prtclLocation(j) / float(count)
-        ! enddo
-        ! write(*,*) count
-    end subroutine prtclCount1
+    end subroutine prtclCount
 
 
-    ! calculate the average location of the particles within a cell
-    ! relative = 1 indicates that the locations should be realtive to the cell center
-    subroutine prtclCellLocation( relative, cell, prtclArray, prtclLocation)
+    ! output total cluster count
+    subroutine wrtCountTime( run, ntTotal, timeCount)
         implicit none
-        integer,  intent(in)  :: relative
-        real(b8), intent(in)  :: cell(:,:), prtclArray(:,:)
-        real(b8), intent(out) :: prtclLocation(:)
-        real(b8) :: r(3)
-        integer  :: i, j, count
+        integer,  intent(in) :: run, ntTotal
+        real(b8), intent(in) :: timeCount(:)
+        real(b8) :: mean
 
-        count = 0
-        prtclLocation(:) = 0.0_b8
-        do i = 1, prtclTotal
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                r(1) = prtclArray(i,1)
-                r(2) = prtclArray(i,2)
-                r(3) = prtclArray(i,3)
-                if ( r(1) > cell(1,1) .AND. r(1) <= cell(1,2) ) then
-                    if ( r(2) > cell(2,1) .AND. r(2) <= cell(2,2) ) then
-                        if ( r(3) > cell(3,1) .AND. r(3) <= cell(3,2) ) then
-                            count = count + 1
-                            do j = 1, 3
-                                prtclLocation(j) = prtclLocation(j) + r(j)
-                                if ( relative == 1 ) then
-                                    prtclLocation(j) = prtclLocation(j) - ((cell(j,2) + cell(j,1))/2.0_b8)
-                                end if
-                            enddo
-                        end if
-                    end if
-                end if
-            end if
-        enddo
-        do j = 1, 3
-            ! prtclLocation(j) = prtclLocation(j) / float(count)
-        enddo
-    end subroutine prtclCellLocation
+        mean = 0.0_b8
+        mean = sum( timeCount(:)) / float(ntTotal)
+
+        write(12,"(E16.8)", advance="no") mean
+        write(12,"(I7)", advance="no") run
+        write(12,*) ''
+    end subroutine wrtCountTime
 
 
     ! output particle location data
