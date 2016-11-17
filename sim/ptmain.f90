@@ -33,11 +33,6 @@ write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
 write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
 write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
 write(*,*)
-! write(*,*) 'Average gradient:'
-! write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
-! write(*,*) 'Average concentration:'
-! write(*,*) lReal * kReal / (dReal * syReal * szReal * 2.0_b8), '/ microns^3'
-! write(*,*)
 
 ! allocate memory
 allocate( prtclArray( prtclTotal, 4))
@@ -87,12 +82,17 @@ do nGeo = 1, geoTotal
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
     ! call itl3DRandom( cellTotal, cellArray, rsim)
-    call itl3DClusterNN( cellArray, rsim)
-    ! call itl2DClusterNN( cellArray, rsim)
+    ! call itl3DClusterNN( cellArray, rsim)
+    call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
     call getCellCenter( cellArray, cellCenter)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)
+    ! do i = 1, 2
+    !     write(*,*)
+    !     write(*,*) i, maxval([cellArray(:,i,1),cellArray(:,i,2)]) - minval([cellArray(:,i,1),cellArray(:,i,2)])
+    !     ! write(*,*) maxval(cellArray(:,i,1)), maxval(cellArray(:,i,2))
+    ! enddo
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -116,14 +116,14 @@ do nGeo = 1, geoTotal
             ! call concentrationXprj( cSize(1), concentration, runCx(nt,:))
         enddo
         ! sample concetration over ensemble - uncomment following 2 lines
-        call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        call concentrationXprj( cSize(1), concentration, runCx(run,:))
+        ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
+        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
 
         call wrtCountTime( run, ntTotal, timeCount)
     enddo
 
     ! write concentration x projection
-    call wrtConcentrationX( cSize, runCx, rsim, runTotal)
+    ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
     close(12)
 enddo
