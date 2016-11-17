@@ -363,7 +363,7 @@ contains
                         if ( dr < rReal ) then
                             ! add q contribution and exit cell loop
                             do j = 1, 2
-                                cellPolar(n,j) = cellPolar(n,j) + r(j) / dr
+                                cellPolar(n,j) = cellPolar(n,j) + (r(j) / dr)
                             enddo
                             exit
                         end if
@@ -416,7 +416,7 @@ contains
                         enddo
                         rmag = sqrt( r(1)**2 + r(2)**2 )
                         do j = 1, 2
-                            cellPolar(n,j) = cellPolar(n,j) + r(j) / rmag
+                            cellPolar(n,j) = cellPolar(n,j) + (r(j) / rmag)
                         enddo
                         exit
                     end if
