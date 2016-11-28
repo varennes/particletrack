@@ -108,6 +108,8 @@ do nGeo = 1, geoTotal
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
+            ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
+
             ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
             ! call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
 
