@@ -81,16 +81,18 @@ do nGeo = 1, geoTotal
 
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
+    call itl1DChain( cellArray, rsim)
     ! call itl3DRandom( cellTotal, cellArray, rsim)
     ! call itl3DClusterNN( cellArray, rsim)
-    call itl2DClusterNN( cellArray, rsim)
+    ! call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
     call getCellCenter( cellArray, cellCenter)
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
     edgeList = 0
     ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    call EdgeList2D( cellArray, rsim, edgeList)
+    ! call EdgeList2D( cellArray, rsim, edgeList)
+    call EdgeList1D( cellArray, edgeList)
     call clusterCenter( cellArray, clstrCOM)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)

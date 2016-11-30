@@ -452,6 +452,33 @@ contains
     end subroutine itl3DRandom
 
 
+    ! initialize cells into 1D chain along gradient direction
+    subroutine itl1DChain( cellArray, rsim)
+        implicit none
+        real(b8), intent(out) :: cellArray(:,:,:)
+        real(b8), intent(in)  :: rsim(:,:)
+        real(b8) :: r0, r1
+        integer :: i, j, k, n
+
+        ! calculate start and end points of chain
+        r0 = lReal/2.0_b8 - rReal*float(cellTotal)
+        r1 = lReal/2.0_b8 + rReal*float(cellTotal)
+
+        do i = 1, cellTotal
+            cellArray(i,1,1) = r0 + rReal*2.0_b8*float(i-1)
+            cellArray(i,1,2) = r0 + rReal*2.0_b8*float(i)
+            do j = 2, 3
+                cellArray(i,j,1) = (rsim(j,2) - rsim(j,1)) / 2.0_b8 - rReal
+                cellArray(i,j,2) = (rsim(j,2) - rsim(j,1)) / 2.0_b8 + rReal
+            enddo
+        enddo
+        if ( minval(cellArray(1:cellTotal,1:3,1)) < 0.0 .OR. maxval(cellArray(1:cellTotal,1:3,2)) > rsim(1,2) ) then
+            write(*,*) '           INITIALIZATION ERROR             '
+            write(*,*) 'ERROR: SYSTEM SIZE TOO SMALL FOR CELL CLUSTER'
+        end if
+    end subroutine itl1DChain
+
+
     ! make a list of cells which are on the perimeter
     ! edgeList(i) = 0 means that cell i is not an edge cell
     ! edgeList(i) = 1 means that cell i is an edge cell
@@ -557,6 +584,40 @@ contains
         deallocate( dr )
         deallocate( center )
     end subroutine EdgeList2D
+
+
+    ! make a list of cells which on the ends of a 1D chain
+    subroutine EdgeList1D( cellArray, edgeList)
+        implicit none
+        integer,  intent(out) :: edgeList(:)
+        real(b8), intent(in)  :: cellArray(:,:,:)
+        real(b8) :: center(cellTotal)
+        real(b8) :: dcell
+        integer  :: i, n1, n2, check
+
+        ! set cell center from cellArray
+        center(:) = 0.0_b8
+        do i = 1, cellTotal
+            center(i) = cellArray(i,1,1) + (cellArray(i,1,2) - cellArray(i,1,1)) / 2.0_b8
+        enddo
+        edgeList(:) = 1
+        do n1 = 1, cellTotal
+            check = 0
+            do n2 = 1, cellTotal
+                if ( n1 == n2 ) then
+                    cycle
+                end if
+                dcell = abs(center(n1) - center(n2))
+                if ( dcell >= 2.0*rReal-0.000001 .AND. dcell <= 2.0*rReal+0.000001 ) then
+                    check = check + 1
+                end if
+                if ( check > 1 ) then
+                    edgeList(n1) = 0
+                    exit
+                end if
+            enddo
+        enddo
+    end subroutine EdgeList1D
 
 
     ! calculate center of mass of cell cluster, neccasary for EC polarization
