@@ -104,6 +104,68 @@ contains
     end subroutine prtclUpdate
 
 
+    ! move particles and check boundary conditions
+    ! all boundaries periodic
+    subroutine prtclUpdateAllPeriodic( p, rsim, prtclArray)
+        implicit none
+        real(b8), intent(in)    :: p, rsim(:,:)
+        real(b8), intent(inout) :: prtclArray(:,:)
+        integer  :: i, j, dim
+        real(b8) :: r
+
+        do i = 1, prtclTotal
+            ! check whether array index corresponds to a particle
+            if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! with probability 'p', move a distance dr(j) in random direction
+                call random_number(r)
+                if ( r <= p ) then
+                    ! check what direction the particle moves
+                    if ( r <= p / 6.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) + bReal
+                    elseif ( r <= p / 3.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) - bReal
+                    elseif ( r <= p / 2.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) + bReal
+                    elseif ( r <= 2.0_b8 * p / 3.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) - bReal
+                    elseif ( r <= 5.0_b8 * p / 6.0_b8 ) then
+                        prtclArray(i,3) = prtclArray(i,3) + bReal
+                    elseif ( r <= p ) then
+                        prtclArray(i,3) = prtclArray(i,3) - bReal
+                    end if
+
+                    ! check boundary conditions: all periodic
+                    do j = 1, 3
+                        if ( prtclArray(i,j) > rsim(j,2) ) then
+                            prtclArray(i,j) = rsim(j,1) + ( prtclArray(i,j) - rsim(j,2) )
+                        elseif ( prtclArray(i,j) < rsim(j,1) ) then
+                            prtclArray(i,j) = rsim(j,2) - ( rsim(j,1) - prtclArray(i,j) )
+                        end if
+                    enddo
+                endif
+            endif
+        enddo
+    end subroutine prtclUpdateAllPeriodic
+
+
+    ! initialize particles in random locations
+    subroutine prtclInitRandom( rsim, prtclArray)
+        implicit none
+        real(b8), intent(in)   :: rsim(:,:)
+        real(b8), intent(out)  :: prtclArray(:,:)
+        real(b8) :: r
+        integer  :: i, j
+        prtclArray(:,:) = 0.0_b8
+        do i = 1, prtclTotal
+            prtclArray(i,4) = 1.0_b8
+            do j = 1, 3
+                call random_number(r)
+                prtclArray(i,j) = r *(rsim(j,2) - rsim(j,1)) + rsim(j,1)
+            enddo
+        enddo
+    end subroutine prtclInitRandom
+
+
     ! calculate the average location of the particles within a cell
     ! relative = 1 indicates that the locations should be realtive to the cell center
     subroutine prtclCount1( relative, cell, prtclArray, prtclLocation)
