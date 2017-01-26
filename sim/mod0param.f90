@@ -6,9 +6,9 @@ integer,  parameter :: b8 = selected_real_kind(14)
 !!! REAL UNIT PARAMETERS !!!
 real(b8), parameter ::  rReal =     5.0_b8   ! in microns
 real(b8), parameter ::  bReal =     1.0_b8   ! in microns
-real(b8), parameter ::  lReal =    20.0_b8   ! in microns
-real(b8), parameter :: syReal =    20.0_b8   ! in microns
-real(b8), parameter :: szReal =    20.0_b8   ! in microns
+real(b8), parameter ::  lReal =    60.0_b8   ! in microns
+real(b8), parameter :: syReal =    60.0_b8   ! in microns
+real(b8), parameter :: szReal =    60.0_b8   ! in microns
 real(b8), parameter ::  dReal =    20.0_b8   ! in microns^2/s
 real(b8), parameter ::  kReal =    50.0_b8   ! in 1/s
 real(b8), parameter ::  hReal =     5.0_b8   ! in microns

@@ -26,7 +26,7 @@ call cpu_time(tCPU0)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = 1
+ntTotal = ntItl
 
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
@@ -61,11 +61,13 @@ call init_random_seed()
 ! initialize particles and let system reach equilibrium
 prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
+call prtclInitRandom( rsim, prtclItl)
 do nt = 1, ntItl
-    ! move particles
-    call prtclUpdate( p, rsim, prtclItl)
-    ! add flux of particles
-    call prtclFlux( q, rsim, prtclItl, overflow)
+    call prtclUpdateAllPeriodic( p, rsim, prtclArray)
+    ! ! move particles
+    ! call prtclUpdate( p, rsim, prtclItl)
+    ! ! add flux of particles
+    ! call prtclFlux( q, rsim, prtclItl, overflow)
 enddo
 
 do nGeo = 1, geoTotal
@@ -106,17 +108,18 @@ do nGeo = 1, geoTotal
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdate( p, rsim, prtclArray)
-            ! add flux of particles
-            call prtclFlux( q, rsim, prtclArray, overflow)
+            call prtclUpdateAllPeriodic( p, rsim, prtclArray)
+            ! call prtclUpdate( p, rsim, prtclArray)
+            ! ! add flux of particles
+            ! call prtclFlux( q, rsim, prtclArray, overflow)
 
             ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
 
             ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
-            ! call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+            call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
-            call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+            ! call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! call polar2DMW( cellArray, prtclArray, cellPolar)
             ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
