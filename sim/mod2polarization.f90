@@ -494,55 +494,61 @@ contains
     end subroutine polar2DEC
 
 
-    ! gradient sensing test
-    subroutine gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
+    ! MW Cross-correlation calc
+    subroutine SijMW( cellCenter, clstrCOM, sMW)
         implicit none
-        real(b8), intent(in)  :: cellArray(:,:,:), cellCenter(:,:), prtclArray(:,:)
-        real(b8), intent(out) :: cellPolar(:,:)
-        real(b8) :: r(3), rmag
-        integer  :: i, j, n, cellCheck
-        integer  :: count1, count2, exitCount
+        real(b8), intent(in)  :: cellCenter(:,:), clstrCOM(3)
+        real(b8), intent(out) :: sMW
+        real(b8) :: ri(3), rj(3), rij(3), tij, nij
+        integer  :: i, j
 
-        cellPolar(:,:) = 0.0_b8
+        sMW = 0.0_b8
+        do j = 2, cellTotal
+            rj = cellCenter(j,:) - clstrCOM
+            do i = 1, j-1
+                ri = cellCenter(i,:) - clstrCOM
+                rij = rj - ri
+                tij = acos(rij(1) / sqrt(sum(rij*rij)))
+                nij = sqrt(sum(rij*rij)) / rReal
+                sMW = sMW + ((3.0*(cos(tij)**2)-1.0) / nij**3)
+            enddo
+        enddo
+        write(*,*) 'mw: tij =', tij, '| nij =', nij
+    end subroutine SijMW
 
-        exitCount = 0
-        count1 = 0
-        count2 = 0
-        do i = 1, prtclTotal
-            if ( prtclArray(i,4) == 1.0_b8 ) then
-                exitCount = 0
-                do j = 1, 3
-                    r(j) = prtclArray(i,j)
-                enddo
-                ! check if particle is in a cell
-                do n = 1, cellTotal
-                    cellCheck = 0
-                    if ( r(1) > cellArray(n,1,1) .AND. r(1) < cellArray(n,1,2) ) then
-                        if ( r(2) > cellArray(n,2,1) .AND. r(2) < cellArray(n,2,2) ) then
-                            if ( r(3) > cellArray(n,3,1) .AND. r(3) < cellArray(n,3,2) ) then
-                                ! gradient sensing #1: difference of particle location and cell center
-                                cellPolar(n,1) = cellPolar(n,1) + r(1) - cellCenter(n,1)
-                                ! gradient sensing #2: divide cell into 2 bins
-                                if ( (r(1) - cellCenter(n,1)) > 0.0_b8 ) then
-                                    count2 = count2 + 1
-                                else
-                                    count1 = count1 + 1
-                                end if
-                            end if
-                        end if
-                    end if
-                enddo
-            else
-                exitCount = exitCount + 1
-                if ( exitCount > (prtclTotal/10) ) then
-                    exit
-                end if
+
+    ! EC Cross-correlation calc
+    subroutine SijEC( cellCenter, clstrCOM, edgeList, sEC)
+        implicit none
+        integer,  intent(in)  :: edgeList(cellTotal)
+        real(b8), intent(in)  :: cellCenter(:,:), clstrCOM(3)
+        real(b8), intent(out) :: sEC
+        real(b8) :: mi, mj, ri(3), rj(3), rij(3), ti, tj, nij
+        integer  :: i, j
+
+        sEC = 0.0_b8
+        do j = 2, cellTotal
+            if ( edgeList(j) == 0 ) then
+                cycle
             end if
+            rj = cellCenter(j,:) - clstrCOM
+            mj = sqrt( sum(rj*rj))
+            tj = acos( rj(1) / mj)
+            do i = 1, j-1
+                if ( edgeList(i) == 0 ) then
+                    cycle
+                end if
+                ri = cellCenter(i,:) - clstrCOM
+                mi = sqrt( sum(ri*ri))
+                ti = acos( ri(1) / mi)
+                rij = cellCenter(j,:) - cellCenter(i,:)
+                nij = sqrt(sum(rij*rij)) / rReal
+                sEC = sEC + (cos(ti) * cos(tj) / nij)
+                write(*,*) 'ec: tj =', tj, '| ti =', ti, '| nij =', nij
+            enddo
         enddo
-        do n = 1, cellTotal
-            cellPolar(n,2) = float(count2 - count1)
-        enddo
-    end subroutine gradientTest
+        ! write(*,*) 'ec: rj', cellCenter(j,:), '| ri', cellCenter(i,:)
+    end subroutine SijEC
 
 
     ! output total cluster polarization

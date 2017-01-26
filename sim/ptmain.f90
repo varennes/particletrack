@@ -18,6 +18,8 @@ real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:),
 real(b8), allocatable :: timePolar(:,:)
 real(b8), allocatable :: cellCenter(:,:)
 
+real(b8) :: sMW, sEC
+
 character(len=1024) :: filename
 
 call cpu_time(tCPU0)
@@ -61,26 +63,13 @@ call init_random_seed()
 ! initialize particles and let system reach equilibrium
 prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
-call prtclInitRandom( rsim, prtclItl)
-do nt = 1, ntItl
-    call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-    ! ! move particles
-    ! call prtclUpdate( p, rsim, prtclItl)
-    ! ! add flux of particles
-    ! call prtclFlux( q, rsim, prtclItl, overflow)
-enddo
+
+! open output data file
+write (filename, "(A3,I0.3,A4)") 'sij', cellTotal, '.dat'
+open( 12, file=filename)
 
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
-    ! open output data file
-    write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.dat'
-    open( 12, file=filename)
-
-    ! initialize arrays
-    concentration = 0.0_b8
-    runCx = 0.0_b8
-    prtclArray = prtclItl
-
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
     call itl1DChain( cellArray, rsim)
@@ -89,65 +78,26 @@ do nGeo = 1, geoTotal
     ! call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
     call getCellCenter( cellArray, cellCenter)
-
-    ! call clusterEdgeList & clusterCenter if simulating EC polarization
-    edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    ! call EdgeList2D( cellArray, rsim, edgeList)
-    call EdgeList1D( cellArray, edgeList)
     call clusterCenter( cellArray, clstrCOM)
+
+    edgeList(:) = 0
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    ! call EdgeList2D( cellArray, edgeList)
+    call EdgeList1D( cellArray, edgeList)
 
     call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
-    do run = 1, runTotal
-        write(*,*) ' run', run
+    call SijMW( cellCenter, clstrCOM, sMW)
+    call SijEC( cellCenter, clstrCOM, edgeList, sEC)
 
-        cellPolar(:,:)   = 0.0_b8
-        timePolar(:,:)   = 0.0_b8
+    write(12,"(E16.8)", advance="no") sMW
+    write(12,"(E16.8)", advance="no") sEC
+    write(12,"(I7)", advance="no") nGeo
+    write(12,*) ''
 
-        ! gather statistics
-        do nt = 1, ntTotal
-            ! update particle location and check boundary conditions
-            call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-            ! call prtclUpdate( p, rsim, prtclArray)
-            ! ! add flux of particles
-            ! call prtclFlux( q, rsim, prtclArray, overflow)
-
-            ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
-
-            ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
-            call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
-            ! call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! call polar2DMW( cellArray, prtclArray, cellPolar)
-            ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
-
-            ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
-            ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! store time series of total cluster polarization
-            do j = 1, 3
-                timePolar(j,nt) = sum(cellPolar(:,j))
-            enddo
-
-            ! sample concentration over time - uncomment following 2 lines
-            ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-            ! call concentrationXprj( cSize(1), concentration, runCx(nt,:))
-        enddo
-        ! sample concetration over ensemble - uncomment following 2 lines
-        ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-        ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
-
-        call wrtPlrTime( run, ntTotal, timePolar)
-    enddo
-
-    ! write concentration x projection
-    ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
-
-    close(12)
 enddo
+
+close(12)
 
 ! write out simulation information / parameters
 call cpu_time(tCPU1)
