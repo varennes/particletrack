@@ -14,8 +14,9 @@ real(b8), allocatable :: prtclArray(:,:), prtclItl(:,:)
 
 real(b8) :: meanCount, varCount, avg, var
 integer,  allocatable :: edgeList(:)
-real(b8), allocatable :: cellArray(:,:,:), cellPolar(:,:), concentration(:,:,:), runCx(:,:)
-real(b8), allocatable :: timePolar(:,:)
+real(b8), allocatable :: cellArray(:,:,:), concentration(:,:,:), runCx(:,:)
+real(b8), allocatable :: cellPolar(:,:), timePolar(:,:)
+real(b8), allocatable :: cellPolarEC(:,:), cellPolarMW(:,:), timePolarEC(:,:), timePolarMW(:,:)
 real(b8), allocatable :: cellCenter(:,:)
 
 character(len=1024) :: filename
@@ -44,7 +45,11 @@ allocate( prtclArray( prtclTotal, 4))
 allocate( prtclItl( prtclTotal, 4))
 allocate( cellArray( cellTotal, 3, 2))
 allocate( cellPolar( cellTotal, 3))
+allocate( cellPolarEC( cellTotal, 3))
+allocate( cellPolarMW( cellTotal, 3))
 allocate( timePolar( 3, ntTotal))
+allocate( timePolarEC( 3, ntTotal))
+allocate( timePolarMW( 3, ntTotal))
 allocate( edgeList( cellTotal))
 allocate( cellCenter( cellTotal, 3) )
 ! initialize concentration array
@@ -63,18 +68,20 @@ prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
 call prtclInitRandom( rsim, prtclItl)
 do nt = 1, ntItl
-    call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-    ! ! move particles
-    ! call prtclUpdate( p, rsim, prtclItl)
-    ! ! add flux of particles
-    ! call prtclFlux( q, rsim, prtclItl, overflow)
+    ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
+    ! move particles
+    call prtclUpdate( p, rsim, prtclItl)
+    ! add flux of particles
+    call prtclFlux( q, rsim, prtclItl, overflow)
 enddo
 
 do nGeo = 1, geoTotal
     write(*,"(A8,I3)") '  nGeo =', nGeo
     ! open output data file
-    write (filename, "(A4,I0.3,A4)") 'mean', nGeo, '.dat'
+    write (filename, "(A2,I0.3,A4)") 'ec', nGeo, '.dat'
     open( 12, file=filename)
+    write (filename, "(A2,I0.3,A4)") 'mw', nGeo, '.dat'
+    open( 13, file=filename)
 
     ! initialize arrays
     concentration = 0.0_b8
@@ -102,21 +109,23 @@ do nGeo = 1, geoTotal
     do run = 1, runTotal
         write(*,*) ' run', run
 
-        cellPolar(:,:)   = 0.0_b8
-        timePolar(:,:)   = 0.0_b8
+        cellPolarEC(:,:) = 0.0_b8
+        cellPolarMW(:,:) = 0.0_b8
+        timePolarEC(:,:) = 0.0_b8
+        timePolarMW(:,:) = 0.0_b8
 
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-            ! call prtclUpdate( p, rsim, prtclArray)
-            ! ! add flux of particles
-            ! call prtclFlux( q, rsim, prtclArray, overflow)
+            ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
+            call prtclUpdate( p, rsim, prtclArray)
+            ! add flux of particles
+            call prtclFlux( q, rsim, prtclArray, overflow)
 
             ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
 
-            ! call polarSphereMW( cellCenter, prtclArray, cellPolar )
-            call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
+            call polarSphereMW( cellCenter, prtclArray, cellPolarMW )
+            call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolarEC)
 
             ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
             ! call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
@@ -129,7 +138,8 @@ do nGeo = 1, geoTotal
 
             ! store time series of total cluster polarization
             do j = 1, 3
-                timePolar(j,nt) = sum(cellPolar(:,j))
+                timePolarEC(j,nt) = sum(cellPolarEC(:,j))
+                timePolarMW(j,nt) = sum(cellPolarMW(:,j))
             enddo
 
             ! sample concentration over time - uncomment following 2 lines
@@ -140,13 +150,14 @@ do nGeo = 1, geoTotal
         ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
         ! call concentrationXprj( cSize(1), concentration, runCx(run,:))
 
-        call wrtPlrTime( run, ntTotal, timePolar)
+        call wrtPlrECMW( run, ntTotal, timePolarEC, timePolarMW)
     enddo
 
     ! write concentration x projection
     ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
     close(12)
+    close(13)
 enddo
 
 ! write out simulation information / parameters

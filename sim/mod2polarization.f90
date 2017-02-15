@@ -566,6 +566,37 @@ contains
     end subroutine wrtPlrTime
 
 
+    ! output total cluster polarization for both EC & MW
+    subroutine wrtPlrECMW( run, ntTotal, timePolarEC, timePolarMW)
+        implicit none
+        integer,  intent(in) :: run, ntTotal
+        real(b8), intent(in), dimension(:,:) :: timePolarEC, timePolarMW
+        real(b8) :: mean(3)
+        integer  :: i, j
+
+        mean = 0.0_b8
+        do i = 1, 3
+            mean(i) = sum( timePolarEC(i,:)) / float(ntTotal)
+        enddo
+        do i = 1, 3
+            write(12,"(E16.8)", advance="no") mean(i)
+        enddo
+        write(12,"(I7)", advance="no") run
+        write(12,*) ''
+
+        mean = 0.0_b8
+        do i = 1, 3
+            mean(i) = sum( timePolarMW(i,:)) / float(ntTotal)
+        enddo
+        do i = 1, 3
+            write(13,"(E16.8)", advance="no") mean(i)
+        enddo
+        write(13,"(I7)", advance="no") run
+        write(13,*) ''
+
+    end subroutine wrtPlrECMW
+
+
     ! output total cluster polarization
     subroutine wrtPlrTotal( run, cellPolar)
         implicit none
