@@ -27,7 +27,7 @@ call cpu_time(tCPU0)
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
 call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = ntItl
+ntTotal = ntItl / 10
 
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
@@ -66,13 +66,11 @@ call init_random_seed()
 ! initialize particles and let system reach equilibrium
 prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
-call prtclInitRandom( rsim, prtclItl)
-do nt = 1, ntItl
-    ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-    ! move particles
-    call prtclUpdate( p, rsim, prtclItl)
+do nt = 1, ntItl / 10
     ! add flux of particles
     call prtclFlux( q, rsim, prtclItl, overflow)
+    ! move particles
+    call prtclDelete( p, rsim, prtclItl)
 enddo
 
 do nGeo = 1, geoTotal
@@ -90,8 +88,8 @@ do nGeo = 1, geoTotal
 
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
-    call itl1DChain( cellArray, rsim)
-    ! call itl3DRandom( cellTotal, cellArray, rsim)
+    ! call itl1DChain( cellArray, rsim)
+    call itl3DRandom( cellTotal, cellArray, rsim)
     ! call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
@@ -99,12 +97,10 @@ do nGeo = 1, geoTotal
 
     ! call clusterEdgeList & clusterCenter if simulating EC polarization
     edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+    call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
     ! call EdgeList2D( cellArray, rsim, edgeList)
-    call EdgeList1D( cellArray, edgeList)
+    ! call EdgeList1D( cellArray, edgeList)
     call clusterCenter( cellArray, clstrCOM)
-
-    call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -115,26 +111,14 @@ do nGeo = 1, geoTotal
         timePolarMW(:,:) = 0.0_b8
 
         ! gather statistics
-        do nt = 1, ntTotal
-            ! update particle location and check boundary conditions
-            ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
-            call prtclUpdate( p, rsim, prtclArray)
+        do nt = 1, 1
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
-
-            ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
+            ! update particle location and check boundary conditions
+            call prtclDelete( p, rsim, prtclArray)
 
             call polarSphereMW( cellCenter, prtclArray, cellPolarMW )
             call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolarEC)
-
-            ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
-            ! call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! call polar2DMW( cellArray, prtclArray, cellPolar)
-            ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
-
-            ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
-            ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! store time series of total cluster polarization
             do j = 1, 3
@@ -142,9 +126,6 @@ do nGeo = 1, geoTotal
                 timePolarMW(j,nt) = sum(cellPolarMW(:,j))
             enddo
 
-            ! sample concentration over time - uncomment following 2 lines
-            ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
-            ! call concentrationXprj( cSize(1), concentration, runCx(nt,:))
         enddo
         ! sample concetration over ensemble - uncomment following 2 lines
         ! call concentrationUpdate( prtclTotal, prtclArray, cSize, concentration)
@@ -156,8 +137,6 @@ do nGeo = 1, geoTotal
     ! write concentration x projection
     ! call wrtConcentrationX( cSize, runCx, rsim, runTotal)
 
-    close(12)
-    close(13)
 enddo
 
 ! write out simulation information / parameters
