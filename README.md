@@ -6,6 +6,8 @@ The most up-to-date version of the code can be found at the code's [GitHub repo]
 
 Cells can be placed within the simulation volume. The particles within a cell are tracked in order to assign a cell a polarization vector. Two principal methods of polarization are used. One referred to as *many wrongs* (also known as individual-based chemotaxis) in which cells individually make a weighted average of the number particles within their bodies. Particles at the front of the cell are given positive weights, whereas particles at the back are weighted negatively. The other is referred to as *emergent chemotaxis* in which cells count the all encolsed particles with equal weight and polarize in the direction away from all their neighbors.
 
+Currently, the master branch can be used for creating linear particles concentration profiles. The [**`exp`**](https://github.com/varennes/particletrack/tree/exp) branch can be used for creating exponential concentration profiles.
+
 ## Simulation Procedure
 
 First, the system is allowed to reach an equilibrium. Particles diffuse and are produced for `ntItl` time-steps.
