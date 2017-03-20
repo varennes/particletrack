@@ -8,7 +8,7 @@ implicit none
 
 integer :: i, j, nGeo, nt, ntItl, ntTotal, run, cSize(3), overflow = 0
 real(b8) :: xmin, xmax, ymin, ymax, zmin, zmax, tCPU0, tCPU1
-real(b8) :: dtReal, p, q, r
+real(b8) :: dtReal, p, q, r, u
 real(b8) :: dr(3), rsim(3,2), clstrCOM(3)
 real(b8), allocatable :: prtclArray(:,:), prtclItl(:,:)
 
@@ -26,18 +26,18 @@ call cpu_time(tCPU0)
 ! initialize simulation space size
 call getSysLengthScales( dr, rsim)
 ! set event probabilities and time-steps needed for sytem to reach equilibrium
-call getProbTimeScale( ntItl, dtReal, p, q)
-ntTotal = ntItl / 10
+call getProbTimeScale( ntItl, dtReal, p, q, u)
+ntTotal = ntItl / 5
 
 write(*,*) 'particle track'
 write(*,*) 'ntItl =', ntItl, ', in seconds:', float(ntItl) * dtReal
 write(*,*) 'ntTotal =', ntTotal, ', in seconds:', float(ntTotal) * dtReal
-write(*,*) 'p =', p, 'q =', q, ' dtReal =', dtReal
+write(*,*) 'p =', p, 'q =', q, 'u =', u, ' dtReal =', dtReal
 write(*,*)
-write(*,*) 'Average gradient:'
-write(*,*) kReal / (dReal * syReal * szReal), '/ microns^4'
-write(*,*) 'Average concentration:'
-write(*,*) lReal * kReal / (dReal * syReal * szReal * 2.0_b8), '/ microns^3'
+write(*,*) 'Degradation Length (lambda):'
+write(*,*) sqrt(dReal/uReal), '/ micron'
+write(*,*) 'Concentration at production side:'
+write(*,*) kReal * sqrt(dReal/uReal) / (dReal * syReal * szReal), '/ microns^3'
 write(*,*)
 
 ! allocate memory
@@ -66,11 +66,11 @@ call init_random_seed()
 ! initialize particles and let system reach equilibrium
 prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
-do nt = 1, ntItl / 10
+do nt = 1, ntItl
     ! add flux of particles
     call prtclFlux( q, rsim, prtclItl, overflow)
     ! move particles
-    call prtclDelete( p, rsim, prtclItl)
+    call prtclDelete( p, u, rsim, prtclItl)
 enddo
 
 do nGeo = 1, geoTotal
@@ -103,7 +103,7 @@ do nGeo = 1, geoTotal
     call clusterCenter( cellArray, clstrCOM)
 
     do run = 1, runTotal
-        write(*,*) ' run', run
+        ! write(*,*) ' run', run
 
         cellPolarEC(:,:) = 0.0_b8
         cellPolarMW(:,:) = 0.0_b8
@@ -111,11 +111,11 @@ do nGeo = 1, geoTotal
         timePolarMW(:,:) = 0.0_b8
 
         ! gather statistics
-        do nt = 1, 1
+        do nt = 1, ntTotal
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
             ! update particle location and check boundary conditions
-            call prtclDelete( p, rsim, prtclArray)
+            call prtclDelete( p, u, rsim, prtclArray)
 
             call polarSphereMW( cellCenter, prtclArray, cellPolarMW )
             call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolarEC)

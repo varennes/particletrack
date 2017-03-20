@@ -5,23 +5,24 @@ use parameters
 !!!  SIMULATION PARAMETERS  [start] !!!
 integer,  parameter ::   geoTotal = 1      ! total number of cluster geometries to iterate through
 integer,  parameter ::   runTotal = 10     ! total number of runs
-integer,  parameter ::  cellTotal = 4      ! total number of cells in system
-integer,  parameter :: prtclTotal = 10000  ! total possible number of particles in system
+integer,  parameter ::  cellTotal = 10     ! total number of cells in system
+integer,  parameter :: prtclTotal = 20000  ! total possible number of particles in system
 !!!  SIMULATION PARAMETERS  [end]   !!!
 
 contains
 
-    subroutine getProbTimeScale( ntItl, dtReal, p, q)
+    subroutine getProbTimeScale( ntItl, dtReal, p, q, u)
         implicit none
-        real(b8), intent(out) :: dtReal, p, q
+        real(b8), intent(out) :: dtReal, p, q, u
         integer,  intent(out) :: ntItl
         ! calculate time step in real units
-        dtReal = min( bReal*bReal / dReal / 6.0_b8, 1.0_b8 / kReal)
-        ! calculate probailities of diffusion and production events
-        p = 6.0_b8 * dReal * dtReal / bReal**2
+        dtReal = min( bReal*bReal / dReal / 6.0_b8, 1.0_b8 / kReal, 1.0_b8 / uReal)
+        ! calculate probailities of diffusion, production and degradation events
+        u = uReal * dtReal
         q = kReal * dtReal
+        p = (6.0_b8 * dReal * dtReal / bReal**2) - u
         ! calculate the number of timesteps needed for equilibration
-        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1)) )
+        ntItl = 10 * ceiling( max( lReal**2 / (dReal * dtReal), (kReal * dtReal)**(-1), (uReal * dtReal)**(-1)) )
     end subroutine getProbTimeScale
 
 

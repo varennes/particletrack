@@ -6,11 +6,12 @@ integer,  parameter :: b8 = selected_real_kind(14)
 !!! REAL UNIT PARAMETERS !!!
 real(b8), parameter ::  rReal =     5.0_b8   ! in microns
 real(b8), parameter ::  bReal =     1.0_b8   ! in microns
-real(b8), parameter ::  lReal =    80.0_b8   ! in microns
-real(b8), parameter :: syReal =    80.0_b8   ! in microns
-real(b8), parameter :: szReal =    80.0_b8   ! in microns
-real(b8), parameter ::  dReal =    10.0_b8   ! in microns^2/s
-real(b8), parameter ::  kReal =   100.0_b8   ! in 1/s
+real(b8), parameter ::  lReal =   100.0_b8   ! in microns
+real(b8), parameter :: syReal =   100.0_b8   ! in microns
+real(b8), parameter :: szReal =   100.0_b8   ! in microns
+real(b8), parameter ::  dReal =   100.0_b8   ! in microns^2/s
+real(b8), parameter ::  kReal =  1000.0_b8   ! in 1/s
+real(b8), parameter ::  uReal =    10.0_b8   ! in 1/s
 real(b8), parameter ::  hReal =     5.0_b8   ! in microns
 
 end module
@@ -28,6 +29,7 @@ end module
 !      s = syReal * szReal; the area of the surface where particles are produced
 !  dReal = diffusion coefficient
 !  kReal = particle production rate
+!  uReal = particle degradation rate
 !
 !  hReal = cell height, only used for 2D configuration. Cells are discs with
 !          hReal and radius rReal

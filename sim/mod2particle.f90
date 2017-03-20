@@ -53,58 +53,69 @@ contains
     ! move particles and check boundary conditions
     ! x=rsim(1,1) boundary absorbing; x=rsim(1,2) boundary reflective
     ! all other boundaries periodic
-    subroutine prtclDelete( p, rsim, prtclArray)
+    subroutine prtclDelete( p, u, rsim, prtclArray)
         implicit none
-        real(b8), intent(in)    :: p, rsim(:,:)
+        real(b8), intent(in)    :: p, u, rsim(:,:)
         real(b8), intent(inout) :: prtclArray(:,:)
         integer  :: i, j, dim
-        real(b8) :: drate, r
-        drate = 0.00010_b8
+        real(b8) :: r
 
         do i = 1, prtclTotal
             ! check whether array index corresponds to a particle
             if ( prtclArray(i,4) == 1.0_b8 ) then
+                ! with probability 'p', move a distance dr(j) in random direction
                 call random_number(r)
-                if ( r < drate ) then
-                    prtclArray(i,4) = 0.0_b8
-                else
-                    ! with probability 'p', move a distance dr(j) in random direction
-                    call random_number(r)
-                    if ( r <= p ) then
-                        ! check what direction the particle moves
-                        if ( r <= p / 6.0_b8 ) then
-                            prtclArray(i,1) = prtclArray(i,1) + bReal
-                        elseif ( r <= p / 3.0_b8 ) then
-                            prtclArray(i,1) = prtclArray(i,1) - bReal
-                        elseif ( r <= p / 2.0_b8 ) then
-                            prtclArray(i,2) = prtclArray(i,2) + bReal
-                        elseif ( r <= 2.0_b8 * p / 3.0_b8 ) then
-                            prtclArray(i,2) = prtclArray(i,2) - bReal
-                        elseif ( r <= 5.0_b8 * p / 6.0_b8 ) then
-                            prtclArray(i,3) = prtclArray(i,3) + bReal
-                        elseif ( r <= p ) then
-                            prtclArray(i,3) = prtclArray(i,3) - bReal
-                        end if
+                if ( r <= p ) then
+                    ! check what direction the particle moves
+                    if ( r <= p / 6.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) + bReal
+                    elseif ( r <= p / 3.0_b8 ) then
+                        prtclArray(i,1) = prtclArray(i,1) - bReal
+                    elseif ( r <= p / 2.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) + bReal
+                    elseif ( r <= 2.0_b8 * p / 3.0_b8 ) then
+                        prtclArray(i,2) = prtclArray(i,2) - bReal
+                    elseif ( r <= 5.0_b8 * p / 6.0_b8 ) then
+                        prtclArray(i,3) = prtclArray(i,3) + bReal
+                    elseif ( r <= p ) then
+                        prtclArray(i,3) = prtclArray(i,3) - bReal
+                    end if
 
-                        ! check boundary conditions
-                        ! periodic boundaries perpendicular to x
-                        ! x = 0 is an absorbing boundary, x = L is reflective
-                        do j = 1, 3
-                            if ( prtclArray(i,j) > rsim(j,2) ) then
-                                if ( j == 1 ) then
-                                    prtclArray(i,j) = rsim(j,2) - ( prtclArray(i,j) - rsim(j,2) )
-                                else
-                                    prtclArray(i,j) = rsim(j,1) + ( prtclArray(i,j) - rsim(j,2) )
-                                end if
-                            elseif ( prtclArray(i,j) < rsim(j,1) ) then
-                                if ( j == 1 ) then
-                                    prtclArray(i,4) = 0.0_b8
-                                else
-                                    prtclArray(i,j) = rsim(j,2) - ( rsim(j,1) - prtclArray(i,j) )
-                                end if
+                    ! check boundary conditions
+                    ! periodic boundaries perpendicular to x
+                    ! x = 0 is reflective, x = L is reflective
+                    do j = 1, 3
+                        if ( prtclArray(i,j) > rsim(j,2) ) then
+                            if ( j == 1 ) then
+                                prtclArray(i,j) = rsim(j,2) - ( prtclArray(i,j) - rsim(j,2) )
+                            else
+                                prtclArray(i,j) = rsim(j,1) + ( prtclArray(i,j) - rsim(j,2) )
                             end if
-                        enddo
-                    endif
+
+                            ! if ( j == 1 ) then
+                            !     prtclArray(i,j) = rsim(j,2) - ( prtclArray(i,j) - rsim(j,2) )
+                            ! else
+                            !     prtclArray(i,j) = rsim(j,1) + ( prtclArray(i,j) - rsim(j,2) )
+                            ! end if
+
+                        elseif ( prtclArray(i,j) < rsim(j,1) ) then
+                            if ( j == 1 ) then
+                                prtclArray(i,j) = rsim(j,1) + ( rsim(j,1) - prtclArray(i,j) )
+                            else
+                                prtclArray(i,j) = rsim(j,2) - ( rsim(j,1) - prtclArray(i,j) )
+                            end if
+
+                            ! if ( j == 1 ) then
+                            !     prtclArray(i,4) = 0.0_b8
+                            ! else
+                            !     prtclArray(i,j) = rsim(j,2) - ( rsim(j,1) - prtclArray(i,j) )
+                            ! end if
+
+                        end if
+                    enddo
+                elseif ( r <= (p + u) ) then
+                    ! degrade particle
+                    prtclArray(i,4) = 0.0_b8
                 endif
             endif
         enddo
