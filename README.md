@@ -2,14 +2,16 @@
 
 Diffusing particle simulation. Particles move randomly inside a 3D volume and boundaries can be periodic or absorbing. Flux boundaries can also be used in order to create concentration gradients across the volume.
 
-Cells can be placed within the simulation volume. The number of particles within a cell can be counted in order to assign a cell a polarization vector.
+The most up-to-date version of the code can be found at the code's [GitHub repo](https://github.com/varennes/particletrack).
+
+Cells can be placed within the simulation volume. The particles within a cell are tracked in order to assign a cell a polarization vector. Two principal methods of polarization are used. One referred to as *many wrongs* (also known as individual-based chemotaxis) in which cells individually make a weighted average of the number particles within their bodies. Particles at the front of the cell are given positive weights, whereas particles at the back are weighted negatively. The other is referred to as *emergent chemotaxis* in which cells count the all encolsed particles with equal weight and polarize in the direction away from all their neighbors.
 
 ## Simulation Procedure
 
 First, the system is allowed to reach an equilibrium. Particles diffuse and are produced for `ntItl` time-steps.
 
-Next, further time evolution of the system can be done. Particles diffuse and are produced for `ntTotal` time-steps. During each time-step cell polarization is calculated based on the diffusing molecule population within each cell. The total cluster polarization is stored for that time-step.
+Next, further time evolution of the system can be done. Particles diffuse and are produced for `ntTotal` time-steps. During each time-step cell polarization is calculated based on the diffusing particle population within each cell. The total collective polarization is stored for that time-step. This procedure can be repeated for many simulation instances for `runTotal` number of times.
 
 ## Output
 
-The time-averaged total cluster polarization is output from the program by using the `wrtPlrTime` subroutine. During each time-step the total cluster polarization is stored in the array `timePolar(1:3,nt)`. At the end of a run `wrtPlrTime` is called and the mean of each component of the polarization vector is calculated. The mean is written to the file `mean###.200`.
+At each time-step `nt` the emergent chemotaxis and many wrongs total polarization are stored in `timePolarEC(:,nt)` and `timePolarMW(:,nt)`, respectively. The averaged over all `ntTotal` time-steps is output from the program by the `wrtPlrECMW` subroutine. At the end of each instance the subroutine `wrtPlrECMW` the total mean polarization vector for emergent chemotaxis and many wrongs are written to the files `ec###.dat` and `mw###.dat`.
