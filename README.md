@@ -1,5 +1,7 @@
 # particletrack
 
+[![DOI](https://zenodo.org/badge/64701444.svg)](https://zenodo.org/badge/latestdoi/64701444)
+
 Diffusing particle simulation. Particles move randomly inside a 3D volume and boundaries can be periodic or absorbing. Flux boundaries can also be used in order to create concentration gradients across the volume.
 
 The most up-to-date version of the code can be found at the code's [GitHub repo](https://github.com/varennes/particletrack).
