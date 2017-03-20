@@ -14,4 +14,4 @@ Next, further time evolution of the system can be done. Particles diffuse and ar
 
 ## Output
 
-At each time-step `nt` the emergent chemotaxis and many wrongs total polarization are stored in `timePolarEC(:,nt)` and `timePolarMW(:,nt)`, respectively. The averaged over all `ntTotal` time-steps is output from the program by the `wrtPlrECMW` subroutine. At the end of each instance the subroutine `wrtPlrECMW` the total mean polarization vector for emergent chemotaxis and many wrongs are written to the files `ec###.dat` and `mw###.dat`.
+At each time-step `nt` the emergent chemotaxis and many wrongs total polarization are stored in `timePolarEC(:,nt)` and `timePolarMW(:,nt)`, respectively. The averaged over all `ntTotal` time-steps is output from the program by the `wrtPlrECMW` subroutine. At the end of each instance the subroutine `wrtPlrECMW` is called, and the total mean polarization vector for emergent chemotaxis and many wrongs are written to the files `ec###.dat` and `mw###.dat`.
