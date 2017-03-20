@@ -68,7 +68,6 @@ prtclArray(:,:) = 0.0_b8
 prtclItl(:,:)   = 0.0_b8
 call prtclInitRandom( rsim, prtclItl)
 do nt = 1, ntItl
-    ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
     ! move particles
     call prtclUpdate( p, rsim, prtclItl)
     ! add flux of particles
@@ -91,20 +90,21 @@ do nGeo = 1, geoTotal
     ! set cell configuration
     cellArray(:,:,:) = 0.0_b8
     call itl1DChain( cellArray, rsim)
-    ! call itl3DRandom( cellTotal, cellArray, rsim)
-    ! call itl3DClusterNN( cellArray, rsim)
     ! call itl2DClusterNN( cellArray, rsim)
     ! call itl2DRandom( cellTotal, cellArray, rsim)
+    ! call itl3DRandom( cellTotal, cellArray, rsim)
+    ! call itl3DClusterNN( cellArray, rsim)
+
     call getCellCenter( cellArray, cellCenter)
 
-    ! call clusterEdgeList & clusterCenter if simulating EC polarization
     edgeList = 0
-    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
-    ! call EdgeList2D( cellArray, rsim, edgeList)
     call EdgeList1D( cellArray, edgeList)
+    ! call EdgeList2D( cellArray, rsim, edgeList)
+    ! call clusterEdgeList( cellTotal, cellArray, rsim, edgeList)
+
     call clusterCenter( cellArray, clstrCOM)
 
-    call wrtOutClusterSys( cellTotal, cellArray, rsim)
+    ! call wrtOutClusterSys( cellTotal, cellArray, rsim)
 
     do run = 1, runTotal
         write(*,*) ' run', run
@@ -117,24 +117,12 @@ do nGeo = 1, geoTotal
         ! gather statistics
         do nt = 1, ntTotal
             ! update particle location and check boundary conditions
-            ! call prtclUpdateAllPeriodic( p, rsim, prtclArray)
             call prtclUpdate( p, rsim, prtclArray)
             ! add flux of particles
             call prtclFlux( q, rsim, prtclArray, overflow)
 
-            ! call gradientTest( cellArray, cellCenter, prtclArray, cellPolar)
-
             call polarSphereMW( cellCenter, prtclArray, cellPolarMW )
             call polarSphereEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolarEC)
-
-            ! call polarDiscMW( cellCenter, prtclArray, cellPolar )
-            ! call polarDiscEC( cellCenter, clstrCOM, edgeList, prtclArray, cellPolar)
-
-            ! call polar2DMW( cellArray, prtclArray, cellPolar)
-            ! call polar2DEC( cellCenter, clstrCOM, edgeList, prtclArray, cellArray, cellPolar)
-
-            ! call polar3DMWv2( cellArray, prtclArray, cellPolar )
-            ! call polar3DECnonadpt( cellArray, clstrCOM, edgeList, prtclArray, cellPolar)
 
             ! store time series of total cluster polarization
             do j = 1, 3
